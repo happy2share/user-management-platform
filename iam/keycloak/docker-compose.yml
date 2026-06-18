@@ -1,0 +1,65 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: keycloak-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - keycloak-net
+
+  adminer:
+    image: adminer:4
+    container_name: keycloak-adminer
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${MYSQL_CLIENT_PORT}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: ${DB_HOST}
+    networks:
+      - keycloak-net
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.6.2
+    container_name: keycloak-docker-mysql
+    command: start-dev --import-realm
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${KC_PORT}:8080"
+    environment:
+      KC_DB: mysql
+      KC_DB_URL: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+      KC_DB_USERNAME: ${DB_USERNAME}
+      KC_DB_PASSWORD: ${DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+    volumes:
+      - ./keycloak/import:/opt/keycloak/data/import
+      - ./keycloak-themes:/opt/keycloak/themes
+    networks:
+      - keycloak-net
+
+volumes:
+  mysql_data:
+
+networks:
+  keycloak-net:
+    driver: bridge
