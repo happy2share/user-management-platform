@@ -1,0 +1,43 @@
+.groups-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.groups-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.groups-create-form {
+  display: flex;
+  gap: 12px;
+  max-width: 520px;
+}
+
+.groups-create-form .form-input {
+  flex: 1;
+}
+
+.groups-error {
+  color: var(--danger);
+}
+
+.groups-id {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+@media (max-width: 700px) {
+  .groups-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .groups-create-form {
+    flex-direction: column;
+  }
+}

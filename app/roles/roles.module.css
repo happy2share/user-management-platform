@@ -1,0 +1,15 @@
+.roleDisplay {
+  display: grid;
+  gap: 4px;
+  font-weight: 700;
+}
+
+.roleName {
+  width: fit-content;
+  font-weight: 600;
+  font-family: monospace;
+  font-size: 13px;
+  background: var(--bg);
+  padding: 2px 8px;
+  border-radius: var(--radius);
+}

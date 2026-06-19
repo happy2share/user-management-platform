@@ -1,0 +1,43 @@
+.realms-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.realm-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.realm-toggle-row {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.realm-toggle-label {
+  font-weight: 600;
+}
+
+.realm-toggle-value {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.realm-actions {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+  .realm-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,41 @@
+import { NextResponse } from "next/server";
+import { requireRealmAdmin } from "../../lib/api-auth";
+import { keycloakAdminFetch } from "../../lib/keycloak";
+import { getKeycloakError } from "../../lib/keycloak-users";
+
+export async function GET() {
+  const unauthorized = await requireRealmAdmin();
+  if (unauthorized) return unauthorized;
+
+  try {
+    const res = await keycloakAdminFetch("/clients");
+    if (!res.ok)
+      return NextResponse.json(
+        { error: await getKeycloakError(res, "Failed to fetch clients") },
+        { status: res.status },
+      );
+    const clients = await res.json();
+    return NextResponse.json(
+      clients.map((c: any) => ({
+        id: c.id,
+        clientId: c.clientId,
+        name: c.name,
+        protocol: c.protocol,
+        publicClient: c.publicClient,
+        serviceAccountsEnabled: c.serviceAccountsEnabled,
+        enabled: c.enabled,
+        redirectUris: c.redirectUris ?? [],
+        standardFlowEnabled: c.standardFlowEnabled,
+        directAccessGrantsEnabled: c.directAccessGrantsEnabled,
+      })),
+    );
+  } catch (error: unknown) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to fetch clients",
+      },
+      { status: 500 },
+    );
+  }
+}
