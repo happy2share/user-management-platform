@@ -26,15 +26,15 @@ for Admin REST API operations.
 
 ## Tech Stack
 
-| Area | Technology |
-| --- | --- |
-| Framework | Next.js App Router |
-| UI | React |
-| Auth | NextAuth |
-| IAM backend | Keycloak |
-| API integration | Keycloak Admin REST API |
-| Styling | CSS modules, global CSS, Tailwind/PostCSS tooling |
-| Icons | Lucide React |
+| Area            | Technology                                        |
+| --------------- | ------------------------------------------------- |
+| Framework       | Next.js App Router                                |
+| UI              | React                                             |
+| Auth            | NextAuth                                          |
+| IAM backend     | Keycloak                                          |
+| API integration | Keycloak Admin REST API                           |
+| Styling         | CSS modules, global CSS, Tailwind/PostCSS tooling |
+| Icons           | Lucide React                                      |
 
 ## Getting Started
 
@@ -63,18 +63,18 @@ Copy-Item .env.example .env.local
 
 Required environment variables:
 
-| Variable | Purpose |
-| --- | --- |
-| `NEXTAUTH_URL` | Local app URL, usually `http://localhost:3000` |
-| `NEXTAUTH_SECRET` | Secret used by NextAuth |
-| `KEYCLOAK_BASE_URL` | Base Keycloak URL |
-| `KEYCLOAK_REALM` | Target Keycloak realm |
-| `KEYCLOAK_ISSUER` | Server-side Keycloak issuer URL |
-| `NEXT_PUBLIC_KEYCLOAK_ISSUER` | Browser-visible issuer URL |
-| `KEYCLOAK_CLIENT_ID` | Frontend/login client ID |
-| `KEYCLOAK_CLIENT_SECRET` | Frontend/login client secret |
-| `KEYCLOAK_ADMIN_CLIENT_ID` | Admin service client ID |
-| `KEYCLOAK_ADMIN_CLIENT_SECRET` | Admin service client secret |
+| Variable                       | Purpose                                        |
+| ------------------------------ | ---------------------------------------------- |
+| `NEXTAUTH_URL`                 | Local app URL, usually `http://localhost:3000` |
+| `NEXTAUTH_SECRET`              | Secret used by NextAuth                        |
+| `KEYCLOAK_BASE_URL`            | Base Keycloak URL                              |
+| `KEYCLOAK_REALM`               | Target Keycloak realm                          |
+| `KEYCLOAK_ISSUER`              | Server-side Keycloak issuer URL                |
+| `NEXT_PUBLIC_KEYCLOAK_ISSUER`  | Browser-visible issuer URL                     |
+| `KEYCLOAK_CLIENT_ID`           | Frontend/login client ID                       |
+| `KEYCLOAK_CLIENT_SECRET`       | Frontend/login client secret                   |
+| `KEYCLOAK_ADMIN_CLIENT_ID`     | Admin service client ID                        |
+| `KEYCLOAK_ADMIN_CLIENT_SECRET` | Admin service client secret                    |
 
 Optional SMTP variables can be set for app-managed email verification. If SMTP
 is not configured, the local development flow can show the OTP on screen.
@@ -104,40 +104,9 @@ receives a fresh access token.
 
 ## Scripts
 
-| Command | Description |
-| --- | --- |
-| `npm.cmd run dev` | Start the local development server |
-| `npm.cmd run lint` | Run ESLint |
-| `npm.cmd run build` | Create a production build |
-| `npm.cmd start` | Start the production server after build |
-
-## Repository Notes
-
-Commit source files, config files, templates, and lockfiles. Do not commit
-generated folders or local secrets.
-
-Should be committed:
-
-- `app/`
-- `public/` when real static assets are added
-- `.env.example`
-- `.gitignore`
-- `package.json`
-- `package-lock.json`
-- `README.md`
-- `next.config.ts`
-- `tsconfig.json`
-- `eslint.config.mjs`
-- `postcss.config.mjs`
-
-Should stay ignored:
-
-- `node_modules/`
-- `.next/`
-- `.env.local`
-- logs
-- local editor folders
-- local archive files such as `.zip` or `.tgz`
-
-`requirements.txt` is only a human-readable setup note in this Node.js project.
-The actual dependency source is `package.json` and `package-lock.json`.
+| Command             | Description                             |
+| ------------------- | --------------------------------------- |
+| `npm.cmd run dev`   | Start the local development server      |
+| `npm.cmd run lint`  | Run ESLint                              |
+| `npm.cmd run build` | Create a production build               |
+| `npm.cmd start`     | Start the production server after build |
