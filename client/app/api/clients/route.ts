@@ -33,7 +33,7 @@ export async function GET() {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Failed to fetch clients",
+          await getKeycloakError(error, "Failed to fetch clients"),
       },
       { status: 500 },
     );

@@ -44,9 +44,9 @@ export async function GET() {
     }
 
     return NextResponse.json(sessions);
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err.message || "Failed to fetch sessions" },
+      { error: await getKeycloakError(err, "Failed to fetch sessions") },
       { status: 500 },
     );
   }
@@ -80,9 +80,9 @@ export async function DELETE() {
     }
 
     return NextResponse.json({ message: "All Keycloak user sessions revoked" });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err.message || "Failed to revoke sessions" },
+      { error: await getKeycloakError(err, "Failed to revoke sessions") },
       { status: 500 },
     );
   }

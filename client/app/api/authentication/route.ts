@@ -73,10 +73,7 @@ export async function GET() {
   } catch (error: unknown) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to load authentication settings",
+        error: await getKeycloakError(error, "Failed to load authentication settings"),
       },
       { status: 500 },
     );
@@ -115,10 +112,7 @@ export async function PUT(req: Request) {
   } catch (error: unknown) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to save authentication settings",
+        error: await getKeycloakError(error, "Failed to save authentication settings"),
       },
       { status: 500 },
     );

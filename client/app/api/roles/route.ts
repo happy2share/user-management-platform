@@ -13,7 +13,7 @@ export async function GET() {
     const roles = await res.json();
     return NextResponse.json(roles.filter((r: { name?: string }) => !r.name?.startsWith("default-roles-")));
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to fetch roles" }, { status: 500 });
+    return NextResponse.json({ error: await getKeycloakError(error, "Failed to fetch roles") }, { status: 500 });
   }
 }
 
@@ -34,6 +34,6 @@ export async function POST(req: Request) {
     if (!res.ok) return NextResponse.json({ error: await getKeycloakError(res, "Failed to create role") }, { status: res.status });
     return NextResponse.json({ message: "Role created successfully" }, { status: 201 });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to create role" }, { status: 500 });
+    return NextResponse.json({ error: await getKeycloakError(error, "Failed to create role") }, { status: 500 });
   }
 }

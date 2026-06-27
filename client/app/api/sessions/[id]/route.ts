@@ -50,7 +50,7 @@ export async function DELETE(req: Request, context: RouteContext) {
     );
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to revoke session" },
+      { error: await getKeycloakError(error, "Failed to revoke session") },
       { status: 500 },
     );
   }

@@ -32,8 +32,15 @@ export function formatKeycloakError(message, fallback = "Something went wrong") 
     .replace(/^./, (letter) => letter.toUpperCase());
 }
 
-export async function getKeycloakError(response, fallback) {
-  const text = await response.text();
+export async function getKeycloakError(error, fallback) {
+  if (!(error instanceof Response)) {
+    return formatKeycloakError(
+      error instanceof Error ? error.message : String(error || ""),
+      fallback,
+    );
+  }
+
+  const text = await error.text();
 
   if (!text) return fallback;
 

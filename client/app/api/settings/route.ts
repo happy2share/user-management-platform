@@ -31,7 +31,7 @@ export async function GET() {
       bruteForceProtected: Boolean(realm.bruteForceProtected),
     });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to load settings" }, { status: 500 });
+    return NextResponse.json({ error: await getKeycloakError(error, "Failed to load settings") }, { status: 500 });
   }
 }
 
@@ -58,6 +58,6 @@ export async function PUT(req: Request) {
     if (!res.ok) throw new Error(await getKeycloakError(res, "Failed to update settings"));
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to save settings" }, { status: 500 });
+    return NextResponse.json({ error: await getKeycloakError(error, "Failed to save settings") }, { status: 500 });
   }
 }

@@ -51,7 +51,7 @@ export async function GET() {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Failed to fetch users",
+          await getKeycloakError(error, "Failed to fetch users"),
       },
       { status: 500 },
     );
@@ -201,7 +201,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Failed to create user",
+          await getKeycloakError(error, "Failed to create user"),
       },
       { status: 500 },
     );

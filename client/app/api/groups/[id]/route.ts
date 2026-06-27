@@ -29,9 +29,9 @@ export async function DELETE(
     return NextResponse.json({
       message: "Group deleted successfully",
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err.message || "Failed to delete group" },
+      { error: await getKeycloakError(err, "Failed to delete group") },
       { status: 500 },
     );
   }

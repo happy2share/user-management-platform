@@ -97,9 +97,9 @@ export async function GET() {
     );
 
     return NextResponse.json(enrichedGroups);
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err.message || "Failed to fetch groups" },
+      { error: await getKeycloakError(err, "Failed to fetch groups") },
       { status: 500 },
     );
   }
@@ -139,9 +139,9 @@ export async function POST(req: Request) {
       { message: "Group created successfully" },
       { status: 201 },
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err.message || "Failed to create group" },
+      { error: await getKeycloakError(err, "Failed to create group") },
       { status: 500 },
     );
   }

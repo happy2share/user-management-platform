@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   findUserByUsername,
+  getKeycloakError,
   getUserOnboardingStatus,
 } from "../../../lib/keycloak-users";
 import { sendEmailVerification } from "../../../lib/app-email";
@@ -54,10 +55,7 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to resend setup email",
+        error: await getKeycloakError(error, "Failed to resend setup email"),
       },
       { status: 500 },
     );

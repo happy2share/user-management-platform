@@ -122,7 +122,7 @@ export async function POST(req: Request) {
         passwordValid: false,
         status: "ERROR",
         error:
-          error instanceof Error ? error.message : "Failed to verify password",
+          await getKeycloakError(error, "Failed to verify password"),
       },
       { status: 500 },
     );

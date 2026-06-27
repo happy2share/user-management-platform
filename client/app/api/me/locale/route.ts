@@ -46,7 +46,7 @@ export async function GET() {
     return NextResponse.json({ locale });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to load user locale" },
+      { error: await getKeycloakError(error, "Failed to load user locale") },
       { status: 500 },
     );
   }
@@ -91,7 +91,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ locale });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to save user locale" },
+      { error: await getKeycloakError(error, "Failed to save user locale") },
       { status: 500 },
     );
   }

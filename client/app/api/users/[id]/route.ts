@@ -82,7 +82,7 @@ export async function PUT(request: Request, context: RouteContext) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Failed to update user",
+          await getKeycloakError(error, "Failed to update user"),
       },
       { status: 500 },
     );
@@ -120,7 +120,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Failed to delete user",
+          await getKeycloakError(error, "Failed to delete user"),
       },
       { status: 500 },
     );

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireRealmAdmin } from "../../../../lib/api-auth";
 import { keycloakAdminFetch } from "../../../../lib/keycloak";
 import { sendEmailVerification } from "../../../../lib/app-email";
+import { getKeycloakError } from "../../../../lib/keycloak-users";
 
 export async function POST(
   _req: Request,
@@ -41,7 +42,7 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Failed to send verification email",
+          await getKeycloakError(error, "Failed to send verification email"),
       },
       { status: 500 },
     );

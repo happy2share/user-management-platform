@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
-import { findUserByUsername } from "../../../../lib/keycloak-users";
+import { findUserByUsername, getKeycloakError } from "../../../../lib/keycloak-users";
 import { verifyPasswordWithKeycloak } from "../../../../lib/keycloak-password";
 import {
   buildOtpAuthUri,
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
     });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to start MFA setup" },
+      { error: await getKeycloakError(error, "Failed to start MFA setup") },
       { status: 500 },
     );
   }

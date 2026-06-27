@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { verifyEmailOtp } from "../../../../lib/app-email";
+import { getKeycloakError } from "../../../../lib/keycloak-users";
 import { normalizeObjectTextFields } from "../../../../lib/english-normalizer";
 
 export async function POST(req: Request) {
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         verified: false,
-        error: error instanceof Error ? error.message : "Failed to verify email OTP",
+        error: await getKeycloakError(error, "Failed to verify email OTP"),
       },
       { status: 400 },
     );

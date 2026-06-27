@@ -36,7 +36,7 @@ export async function GET() {
     });
   } catch (err: unknown) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to fetch realm" },
+      { error: await getKeycloakError(err, "Failed to fetch realm") },
       { status: 500 },
     );
   }
@@ -75,7 +75,7 @@ export async function PUT(req: Request) {
     return NextResponse.json({ message: "Realm updated successfully" });
   } catch (err: unknown) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Failed to update realm" },
+      { error: await getKeycloakError(err, "Failed to update realm") },
       { status: 500 },
     );
   }

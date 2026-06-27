@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
-import { findUserByUsernameOrEmail } from "../../../../lib/keycloak-users";
+import { findUserByUsernameOrEmail, getKeycloakError } from "../../../../lib/keycloak-users";
 import { sendEmailVerification } from "../../../../lib/app-email";
 import { normalizeObjectTextFields } from "../../../../lib/english-normalizer";
 
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to send email verification OTP" },
+      { error: await getKeycloakError(error, "Failed to send email verification OTP") },
       { status: 500 },
     );
   }

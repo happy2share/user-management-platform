@@ -22,7 +22,7 @@ export async function PUT(req: Request, context: RouteContext) {
     if (!res.ok) return NextResponse.json({ error: await getKeycloakError(res, "Failed to update role") }, { status: res.status });
     return NextResponse.json({ message: "Role updated successfully" });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to update role" }, { status: 500 });
+    return NextResponse.json({ error: await getKeycloakError(error, "Failed to update role") }, { status: 500 });
   }
 }
 
@@ -36,6 +36,6 @@ export async function DELETE(_req: Request, context: RouteContext) {
     if (!res.ok) return NextResponse.json({ error: await getKeycloakError(res, "Failed to delete role") }, { status: res.status });
     return NextResponse.json({ message: "Role deleted successfully" });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to delete role" }, { status: 500 });
+    return NextResponse.json({ error: await getKeycloakError(error, "Failed to delete role") }, { status: 500 });
   }
 }

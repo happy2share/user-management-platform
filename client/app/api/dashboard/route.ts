@@ -49,6 +49,6 @@ export async function GET() {
       activeSessions,
     });
   } catch (error: unknown) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to load dashboard" }, { status: 500 });
+    return NextResponse.json({ error: await getKeycloakError(error, "Failed to load dashboard") }, { status: 500 });
   }
 }

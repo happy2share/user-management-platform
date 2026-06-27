@@ -68,9 +68,9 @@ export async function GET(
       directCount: directMembers.length,
       totalCount: allMembers.length,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: err.message || "Failed to fetch group members" },
+      { error: await getKeycloakError(err, "Failed to fetch group members") },
       { status: 500 },
     );
   }

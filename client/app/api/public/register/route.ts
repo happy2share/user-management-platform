@@ -128,7 +128,7 @@ export async function POST(req: Request) {
     );
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to register user" },
+      { error: await getKeycloakError(error, "Failed to register user") },
       { status: 500 },
     );
   }
