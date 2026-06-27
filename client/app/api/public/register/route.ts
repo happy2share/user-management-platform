@@ -10,6 +10,22 @@ import { normalizeObjectTextFields } from "../../../lib/english-normalizer";
 
 export async function POST(req: Request) {
   try {
+    const realmRes = await keycloakAdminFetch("");
+    if (!realmRes.ok) {
+      return NextResponse.json(
+        { error: await getKeycloakError(realmRes, "Failed to check registration settings") },
+        { status: realmRes.status },
+      );
+    }
+
+    const realm = await realmRes.json();
+    if (realm.registrationAllowed !== true) {
+      return NextResponse.json(
+        { error: "Public registration is disabled" },
+        { status: 400 },
+      );
+    }
+
     const rawBody = await req.json();
     const body = {
       ...rawBody,
@@ -88,6 +104,12 @@ export async function POST(req: Request) {
     }
 
     const userRes = await keycloakAdminFetch(`/users/${encodeURIComponent(userId)}`);
+    if (!userRes.ok) {
+      return NextResponse.json(
+        { error: await getKeycloakError(userRes, "Failed to load registered user") },
+        { status: userRes.status },
+      );
+    }
     const createdUser = await userRes.json();
     const verification = await sendEmailVerification(createdUser);
 

@@ -4,6 +4,7 @@ import {
   KEYCLOAK_ADMIN_API,
   KEYCLOAK_TOKEN_URL,
 } from "./constants";
+import { getKeycloakError } from "./keycloak-error";
 
 export async function getAdminAccessToken() {
   const body = new URLSearchParams();
@@ -22,8 +23,7 @@ export async function getAdminAccessToken() {
   });
 
   if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Failed to get admin token: ${errorText}`);
+    throw new Error(await getKeycloakError(res, "Failed to get admin token"));
   }
 
   const data = await res.json();

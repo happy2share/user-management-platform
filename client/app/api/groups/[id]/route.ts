@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireRealmAdmin } from "../../../lib/api-auth";
 import { keycloakAdminFetch } from "../../../lib/keycloak";
+import { getKeycloakError } from "../../../lib/keycloak-users";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -20,7 +21,7 @@ export async function DELETE(
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: await res.text() },
+        { error: await getKeycloakError(res, "Failed to delete group") },
         { status: res.status },
       );
     }

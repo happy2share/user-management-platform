@@ -54,7 +54,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       otpauthUri,
-      qrImageUrl: buildQrImageUrl(otpauthUri),
+      qrImageUrl: await buildQrImageUrl(otpauthUri),
       manualKey: secret,
       message: "Scan the QR code and enter the OTP from your authenticator app.",
     });

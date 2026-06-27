@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { keycloakAdminFetch } from "../../../lib/keycloak";
-import { findUserByUsername, hasAppMfaConfigured } from "../../../lib/keycloak-users";
+import { findUserByUsername, getKeycloakError, hasAppMfaConfigured } from "../../../lib/keycloak-users";
 import { normalizeObjectTextFields } from "../../../lib/english-normalizer";
 
 type KeycloakCredential = {
@@ -12,7 +12,11 @@ async function hasNativeOtp(userId: string) {
     `/users/${encodeURIComponent(userId)}/credentials`,
   );
 
-  if (!response.ok) return false;
+  if (!response.ok) {
+    throw new Error(
+      await getKeycloakError(response, "Failed to check native MFA credentials"),
+    );
+  }
   const credentials = await response.json();
 
   return Array.isArray(credentials)

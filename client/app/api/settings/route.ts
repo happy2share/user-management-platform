@@ -28,6 +28,7 @@ export async function GET() {
       duplicateEmailsAllowed: Boolean(realm.duplicateEmailsAllowed),
       editUsernameAllowed: Boolean(realm.editUsernameAllowed),
       verifyEmail: Boolean(realm.verifyEmail),
+      bruteForceProtected: Boolean(realm.bruteForceProtected),
     });
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to load settings" }, { status: 500 });
@@ -50,6 +51,7 @@ export async function PUT(req: Request) {
       duplicateEmailsAllowed: Boolean(body.duplicateEmailsAllowed),
       editUsernameAllowed: Boolean(body.editUsernameAllowed),
       verifyEmail: Boolean(body.verifyEmail),
+      bruteForceProtected: Boolean(body.bruteForceProtected),
     };
 
     const res = await keycloakAdminFetch("", { method: "PUT", body: JSON.stringify(payload) });

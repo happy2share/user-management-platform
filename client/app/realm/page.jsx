@@ -66,10 +66,12 @@ export default function RealmPage() {
 
   function updateRealm(key, value) {
     setRealm((current) => ({ ...current, [key]: value }));
+    setSettings((current) => ({ ...current, [key]: value }));
   }
 
   function updateSettings(key, value) {
     setSettings((current) => ({ ...current, [key]: value }));
+    setRealm((current) => ({ ...current, [key]: value }));
   }
 
   async function saveRealm() {
@@ -77,16 +79,22 @@ export default function RealmPage() {
     setError("");
     setMessage("");
 
-    const response = await fetch("/api/realms", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(realm),
-    });
-    const data = await response.json().catch(() => ({}));
+    try {
+      const response = await fetch("/api/realms", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(realm),
+      });
+      const data = await response.json().catch(() => ({}));
 
-    if (!response.ok) setError(data.error || t("realm.failedSaveRealm"));
-    else setMessage(t("realm.realmSaved"));
-    setSavingRealm(false);
+      if (!response.ok) throw new Error(data.error || t("realm.failedSaveRealm"));
+      await loadRealm();
+      setMessage(t("realm.realmSaved"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("realm.failedSaveRealm"));
+    } finally {
+      setSavingRealm(false);
+    }
   }
 
   async function saveSettings() {
@@ -94,16 +102,22 @@ export default function RealmPage() {
     setError("");
     setMessage("");
 
-    const response = await fetch("/api/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
-    });
-    const data = await response.json().catch(() => ({}));
+    try {
+      const response = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      const data = await response.json().catch(() => ({}));
 
-    if (!response.ok) setError(data.error || t("realm.failedSaveSettings"));
-    else setMessage(t("realm.settingsSaved"));
-    setSavingSettings(false);
+      if (!response.ok) throw new Error(data.error || t("realm.failedSaveSettings"));
+      await loadRealm();
+      setMessage(t("realm.settingsSaved"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("realm.failedSaveSettings"));
+    } finally {
+      setSavingSettings(false);
+    }
   }
 
   return (

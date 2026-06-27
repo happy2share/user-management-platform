@@ -28,7 +28,9 @@ export async function GET() {
     const sessionsNested = await Promise.all(
       users.map(async (user: { id: string }) => {
         const res = await keycloakAdminFetch(`/users/${encodeURIComponent(user.id)}/sessions`);
-        if (!res.ok) return [];
+        if (!res.ok) {
+          throw new Error(await getKeycloakError(res, "Failed to fetch user sessions"));
+        }
         return res.json();
       }),
     );

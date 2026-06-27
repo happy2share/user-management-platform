@@ -3,7 +3,6 @@
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=000)
 ![Keycloak](https://img.shields.io/badge/Keycloak-IAM-4D4D4D)
-![Status](https://img.shields.io/badge/status-active-blue)
 
 IAM Platform is a custom Next.js administration portal for Keycloak. It uses
 NextAuth for application sessions and a confidential Keycloak service account
@@ -69,12 +68,12 @@ Required environment variables:
 | `NEXTAUTH_SECRET`              | Secret used by NextAuth                        |
 | `KEYCLOAK_BASE_URL`            | Base Keycloak URL                              |
 | `KEYCLOAK_REALM`               | Target Keycloak realm                          |
-| `KEYCLOAK_ISSUER`              | Server-side Keycloak issuer URL                |
 | `NEXT_PUBLIC_KEYCLOAK_ISSUER`  | Browser-visible issuer URL                     |
 | `KEYCLOAK_CLIENT_ID`           | Frontend/login client ID                       |
 | `KEYCLOAK_CLIENT_SECRET`       | Frontend/login client secret                   |
 | `KEYCLOAK_ADMIN_CLIENT_ID`     | Admin service client ID                        |
 | `KEYCLOAK_ADMIN_CLIENT_SECRET` | Admin service client secret                    |
+| `APP_MFA_ENCRYPTION_KEY`       | Required key used to encrypt app MFA secrets   |
 
 Optional SMTP variables can be set for app-managed email verification. If SMTP
 is not configured, the local development flow can show the OTP on screen.

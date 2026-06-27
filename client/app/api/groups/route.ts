@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireRealmAdmin } from "../../lib/api-auth";
 import { keycloakAdminFetch } from "../../lib/keycloak";
+import { getKeycloakError } from "../../lib/keycloak-users";
 import { normalizeObjectTextFields } from "../../lib/english-normalizer";
 
 type KeycloakGroup = {
@@ -11,7 +12,9 @@ type KeycloakGroup = {
 };
 
 async function readJsonOrEmptyArray(res: Response) {
-  if (!res.ok) return [];
+  if (!res.ok) {
+    throw new Error(await getKeycloakError(res, "Failed to load group data"));
+  }
   return res.json();
 }
 
@@ -31,11 +34,12 @@ async function getGroupChildren(group: KeycloakGroup, visited: Set<string>) {
     `/groups/${encodeURIComponent(group.id)}/children?briefRepresentation=false&first=0&max=1000`,
   );
 
-  const children = childrenRes.ok
-    ? await childrenRes.json()
-    : Array.isArray(group.subGroups)
-      ? group.subGroups
-      : [];
+  if (!childrenRes.ok) {
+    throw new Error(
+      await getKeycloakError(childrenRes, "Failed to load child groups"),
+    );
+  }
+  const children = await childrenRes.json();
 
   return Promise.all(
     children.map((child: KeycloakGroup) => enrichGroup(child, new Set(visited))),
@@ -81,7 +85,7 @@ export async function GET() {
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: await res.text() },
+        { error: await getKeycloakError(res, "Failed to fetch groups") },
         { status: res.status },
       );
     }
@@ -126,7 +130,7 @@ export async function POST(req: Request) {
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: await res.text() },
+        { error: await getKeycloakError(res, "Failed to create group") },
         { status: res.status },
       );
     }

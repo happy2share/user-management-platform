@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { keycloakAdminFetch } from "../../../lib/keycloak";
 import {
   findUserByUsername,
+  getKeycloakError,
   getUserOnboardingStatus,
   hasAppMfaConfigured,
 } from "../../../lib/keycloak-users";
@@ -19,7 +20,9 @@ async function readNativeKeycloakMfaConfigured(userId: string) {
   );
 
   if (!response.ok) {
-    return false;
+    throw new Error(
+      await getKeycloakError(response, "Failed to check native MFA credentials"),
+    );
   }
 
   const credentials = await response.json();

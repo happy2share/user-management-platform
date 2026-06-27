@@ -1,6 +1,7 @@
 import type { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { KEYCLOAK_TOKEN_URL } from "./constants";
+import { getKeycloakError } from "./keycloak-error";
 import { verifyUserAppOtp } from "./app-mfa";
 import { findUserByUsername, getUserOnboardingStatus, hasAppMfaConfigured } from "./keycloak-users";
 
@@ -90,15 +91,13 @@ async function loginWithKeycloakPassword(
     cache: "no-store",
   });
 
-  const tokenData = await tokenRes.json().catch(() => ({}));
-
   if (!tokenRes.ok) {
     throw new Error(
-      tokenData.error_description ||
-        tokenData.error ||
-        "Invalid Keycloak username, password, or OTP",
+      await getKeycloakError(tokenRes, "Invalid Keycloak username, password, or OTP"),
     );
   }
+
+  const tokenData = await tokenRes.json();
 
   const claims = decodeJwt<AccessTokenClaims>(tokenData.access_token) ?? {};
 

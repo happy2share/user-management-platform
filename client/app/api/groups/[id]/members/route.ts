@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireRealmAdmin } from "../../../../lib/api-auth";
 import { keycloakAdminFetch } from "../../../../lib/keycloak";
+import { getKeycloakError } from "../../../../lib/keycloak-users";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -9,7 +10,9 @@ async function readMembers(groupId: string) {
     `/groups/${encodeURIComponent(groupId)}/members?first=0&max=1000&briefRepresentation=false`,
   );
 
-  if (!res.ok) return [];
+  if (!res.ok) {
+    throw new Error(await getKeycloakError(res, "Failed to load group members"));
+  }
   return res.json();
 }
 
@@ -18,7 +21,9 @@ async function readChildren(groupId: string) {
     `/groups/${encodeURIComponent(groupId)}/children?briefRepresentation=false&first=0&max=1000`,
   );
 
-  if (!res.ok) return [];
+  if (!res.ok) {
+    throw new Error(await getKeycloakError(res, "Failed to load child groups"));
+  }
   return res.json();
 }
 

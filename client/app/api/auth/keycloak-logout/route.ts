@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "../../../lib/auth";
 import { KEYCLOAK_TOKEN_URL } from "../../../lib/constants";
+import { getKeycloakError } from "../../../lib/keycloak-users";
 
 type SessionWithRefresh = {
   refreshToken?: string;
@@ -32,7 +33,7 @@ export async function POST() {
 
   if (!response.ok) {
     return NextResponse.json(
-      { ok: false, error: await response.text() },
+      { ok: false, error: await getKeycloakError(response, "Failed to log out from Keycloak") },
       { status: response.status },
     );
   }

@@ -3,7 +3,7 @@ import net from "net";
 import tls from "tls";
 
 import { keycloakAdminFetch } from "./keycloak";
-import { findUserByUsernameOrEmail } from "./keycloak-users";
+import { findUserByUsernameOrEmail, getKeycloakError } from "./keycloak-users";
 
 function hashValue(value) {
   return crypto.createHash("sha256").update(String(value)).digest("hex");
@@ -193,8 +193,9 @@ export async function createEmailVerificationOtp(user) {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || "Failed to store email verification OTP");
+    throw new Error(
+      await getKeycloakError(response, "Failed to store email verification OTP"),
+    );
   }
 
   return {
@@ -257,7 +258,7 @@ export async function verifyEmailOtp({ username, email, identifier, otp }) {
     const requiredActions = removeAppManagedRequiredActions(user.requiredActions);
 
     if ((user.requiredActions || []).length !== requiredActions.length) {
-      await keycloakAdminFetch(`/users/${encodeURIComponent(user.id)}`, {
+      const response = await keycloakAdminFetch(`/users/${encodeURIComponent(user.id)}`, {
         method: "PUT",
         body: JSON.stringify({
           ...user,
@@ -268,6 +269,12 @@ export async function verifyEmailOtp({ username, email, identifier, otp }) {
           },
         }),
       });
+
+      if (!response.ok) {
+        throw new Error(
+          await getKeycloakError(response, "Failed to update verified user"),
+        );
+      }
     }
 
     return { username: user.username, email: user.email, alreadyVerified: true };
@@ -308,8 +315,7 @@ export async function verifyEmailOtp({ username, email, identifier, otp }) {
   });
 
   if (!updateRes.ok) {
-    const text = await updateRes.text();
-    throw new Error(text || "Failed to verify email");
+    throw new Error(await getKeycloakError(updateRes, "Failed to verify email"));
   }
 
   return { username: user.username, email: user.email, alreadyVerified: false };

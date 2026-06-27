@@ -1,4 +1,5 @@
 import { KEYCLOAK_TOKEN_URL } from "./constants";
+import { getKeycloakError } from "./keycloak-error";
 
 export async function verifyPasswordWithKeycloak(username, password) {
   const clientId = process.env.KEYCLOAK_PASSWORD_CHECK_CLIENT_ID || "iam-password-check";
@@ -28,13 +29,11 @@ export async function verifyPasswordWithKeycloak(username, password) {
     cache: "no-store",
   });
 
-  const data = await response.json().catch(() => ({}));
-
   if (!response.ok) {
     return {
       ok: false,
       status: response.status,
-      error: data.error_description || data.error || "Invalid username or password",
+      error: await getKeycloakError(response, "Invalid username or password"),
     };
   }
 

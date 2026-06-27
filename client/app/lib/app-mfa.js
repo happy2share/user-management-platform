@@ -1,6 +1,8 @@
 import crypto from "crypto";
+import QRCode from "qrcode";
 
 import { keycloakAdminFetch } from "./keycloak";
+import { getKeycloakError } from "./keycloak-users";
 
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
@@ -15,11 +17,11 @@ export function isAppMfaConfigured(user) {
 }
 
 function getEncryptionKey() {
-  const source =
-    process.env.APP_MFA_ENCRYPTION_KEY ||
-    process.env.NEXTAUTH_SECRET ||
-    process.env.KEYCLOAK_ADMIN_CLIENT_SECRET ||
-    "dev-only-change-this-secret";
+  const source = process.env.APP_MFA_ENCRYPTION_KEY;
+
+  if (!source) {
+    throw new Error("APP_MFA_ENCRYPTION_KEY is required");
+  }
 
   return crypto.createHash("sha256").update(source).digest();
 }
@@ -157,9 +159,7 @@ export function buildOtpAuthUri({ username, issuer = "IAM Platform", secret }) {
 }
 
 export function buildQrImageUrl(otpauthUri) {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
-    otpauthUri,
-  )}`;
+  return QRCode.toDataURL(otpauthUri, { width: 220, margin: 1 });
 }
 
 export async function updateUserAttributes(user, updates) {
@@ -184,8 +184,9 @@ export async function updateUserAttributes(user, updates) {
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || "Failed to update user attributes");
+    throw new Error(
+      await getKeycloakError(response, "Failed to update user attributes"),
+    );
   }
 
   const expectedAttributes = Object.entries(updates)
@@ -201,8 +202,9 @@ export async function updateUserAttributes(user, updates) {
     );
 
     if (!checkResponse.ok) {
-      const text = await checkResponse.text();
-      throw new Error(text || "Failed to verify user attributes");
+      throw new Error(
+        await getKeycloakError(checkResponse, "Failed to verify user attributes"),
+      );
     }
 
     const savedUser = await checkResponse.json();
