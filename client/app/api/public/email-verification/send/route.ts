@@ -25,15 +25,18 @@ export async function POST(req: Request) {
     }
 
     const verification = await sendEmailVerification(user);
+    const exposeLocalOtp = process.env.NODE_ENV !== "production";
 
     return NextResponse.json({
       message: verification.emailSent
         ? "Email verification OTP sent. Please check your inbox."
-        : "App SMTP is not configured. Use the local OTP shown below for testing.",
+        : exposeLocalOtp
+          ? "App SMTP is not configured. Use the local OTP shown below for testing."
+          : "App SMTP is not configured. Please contact support.",
       emailVerificationSent: verification.emailSent,
       verificationPageLink: verification.verificationPageLink,
       verificationLink: verification.verificationPageLink,
-      localOtpCode: verification.localOtpCode,
+      localOtpCode: exposeLocalOtp ? verification.localOtpCode : undefined,
       warning: verification.warning,
     });
   } catch (error: unknown) {
