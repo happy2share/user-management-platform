@@ -472,6 +472,7 @@ export default function LandingAuth() {
               ) : (
                 <>
                   <div className="auth-qr-box">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={mfaSetup.qrImageUrl} alt={t("auth.mfaQrAlt")} />
                   </div>
                   <label>
@@ -683,6 +684,7 @@ export default function LandingAuth() {
           <form onSubmit={handleMfaSetupVerify} className="auth-form">
             {mfaSetup && (
               <div className="auth-qr-box">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={mfaSetup.qrImageUrl} alt={t("auth.mfaQrAlt")} />
               </div>
             )}

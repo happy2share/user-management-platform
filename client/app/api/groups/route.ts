@@ -11,6 +11,11 @@ type KeycloakGroup = {
   subGroups?: KeycloakGroup[];
 };
 
+type EnrichedGroup = {
+  subGroupCount?: number;
+  memberIds?: string[];
+};
+
 async function readJsonOrEmptyArray(res: Response) {
   if (!res.ok) {
     throw new Error(await getKeycloakError(res, "Failed to load group data"));
@@ -46,21 +51,21 @@ async function getGroupChildren(group: KeycloakGroup, visited: Set<string>) {
   );
 }
 
-async function enrichGroup(group: KeycloakGroup, visited = new Set<string>()): Promise<any> {
+async function enrichGroup(group: KeycloakGroup, visited = new Set<string>()) {
   const [directMembers, subGroups] = await Promise.all([
     getDirectGroupMembers(group.id),
     getGroupChildren(group, visited),
   ]);
 
   const nestedMemberIds = new Set<string>();
-  const collect = (candidate: any) => {
+  const collect = (candidate: EnrichedGroup) => {
     candidate.memberIds?.forEach((id: string) => nestedMemberIds.add(id));
   };
   subGroups.forEach(collect);
   directMembers.forEach((member: { id: string }) => nestedMemberIds.add(member.id));
 
   const nestedSubGroupCount = subGroups.reduce(
-    (total: number, child: any) => total + 1 + (child.subGroupCount || 0),
+    (total: number, child: EnrichedGroup) => total + 1 + (child.subGroupCount || 0),
     0,
   );
 

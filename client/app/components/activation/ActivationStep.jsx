@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import "./activation.css";
 
@@ -25,6 +26,30 @@ function nextPath(currentStep, token, nextStep) {
 
   const index = STEP_ORDER.indexOf(currentStep);
   return pathFor(STEP_ORDER[Math.min(index + 1, STEP_ORDER.length - 1)], token);
+}
+
+function StepProgress({ completed, activeStep }) {
+  return (
+    <div className="activation-steps">
+      {["terms", "password", "email", "mfa", "complete"].map((item) => (
+        <div
+          key={item}
+          className={`activation-step-pill ${completed[item] ? "done" : ""} ${activeStep === item ? "active" : ""}`}
+        >
+          {STEP_LABELS[item]}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StatusBlock({ status }) {
+  if (!status) return null;
+  return (
+    <div className="activation-alert info">
+      Account: <strong>{status.username}</strong> {status.email ? `(${status.email})` : ""}
+    </div>
+  );
 }
 
 export default function ActivationStep({ step, initialToken = "", initialEmailToken = "" }) {
@@ -58,7 +83,10 @@ export default function ActivationStep({ step, initialToken = "", initialEmailTo
 
   useEffect(() => {
     if (!initialToken) return;
-    loadStatus(initialToken).catch((err) => setError(err.message));
+    const timeoutId = window.setTimeout(() => {
+      loadStatus(initialToken).catch((err) => setError(err.message));
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialToken]);
 
@@ -205,30 +233,6 @@ export default function ActivationStep({ step, initialToken = "", initialEmailTo
     }
   }
 
-  function StepProgress() {
-    return (
-      <div className="activation-steps">
-        {["terms", "password", "email", "mfa", "complete"].map((item) => (
-          <div
-            key={item}
-            className={`activation-step-pill ${completed[item] ? "done" : ""} ${activeStep === item ? "active" : ""}`}
-          >
-            {STEP_LABELS[item]}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  function StatusBlock() {
-    if (!status) return null;
-    return (
-      <div className="activation-alert info">
-        Account: <strong>{status.username}</strong> {status.email ? `(${status.email})` : ""}
-      </div>
-    );
-  }
-
   return (
     <main className="activation-shell">
       <section className="activation-card">
@@ -245,8 +249,8 @@ export default function ActivationStep({ step, initialToken = "", initialEmailTo
           update password, verify email, and configure MFA.
         </p>
 
-        <StepProgress />
-        <StatusBlock />
+        <StepProgress completed={completed} activeStep={activeStep} />
+        <StatusBlock status={status} />
 
         {error && <div className="activation-alert error">{error}</div>}
         {message && <div className="activation-alert success">{message}</div>}
@@ -266,9 +270,9 @@ export default function ActivationStep({ step, initialToken = "", initialEmailTo
               <button className="activation-button" disabled={busy} type="submit">
                 {busy ? "Checking..." : "Start activation"}
               </button>
-              <a className="activation-button secondary" href="/">
+              <Link className="activation-button secondary" href="/">
                 Back to login
-              </a>
+              </Link>
             </div>
           </form>
         )}

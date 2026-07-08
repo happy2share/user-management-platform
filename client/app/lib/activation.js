@@ -31,10 +31,6 @@ function tokenExpiryIso(hours = 24) {
   return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
 }
 
-function appendRequiredActions(existing = [], actions = ONBOARDING_REQUIRED_ACTIONS) {
-  return [...new Set([...(existing || []), ...actions])];
-}
-
 function mergeAttributes(current = {}, patch = {}) {
   return {
     ...(current || {}),

@@ -3,6 +3,10 @@ import { requireRealmAdmin } from "../../lib/api-auth";
 import { keycloakAdminFetch } from "../../lib/keycloak";
 import { getKeycloakError } from "../../lib/keycloak-users";
 
+type ClientSessionStat = {
+  active?: number | string;
+};
+
 async function jsonOrThrow(path: string) {
   const res = await keycloakAdminFetch(path);
   if (!res.ok) throw new Error(await getKeycloakError(res, `Failed to fetch ${path}`));
@@ -14,27 +18,21 @@ export async function GET() {
   if (unauthorized) return unauthorized;
 
   try {
-    const [realm, users, roles, groups, clients] = await Promise.all([
+    const [realm, users, roles, groups, clients, clientSessionStats] = await Promise.all([
       jsonOrThrow(""),
       jsonOrThrow("/users?max=200"),
       jsonOrThrow("/roles"),
       jsonOrThrow("/groups"),
       jsonOrThrow("/clients"),
+      jsonOrThrow("/client-session-stats"),
     ]);
 
     const enabledUsers = users.filter((u: { enabled?: boolean }) => u.enabled).length;
     const disabledUsers = users.length - enabledUsers;
-
-    const sessionsNested = await Promise.all(
-      users.map(async (user: { id: string }) => {
-        const res = await keycloakAdminFetch(`/users/${encodeURIComponent(user.id)}/sessions`);
-        if (!res.ok) {
-          throw new Error(await getKeycloakError(res, "Failed to fetch user sessions"));
-        }
-        return res.json();
-      }),
+    const activeSessions = clientSessionStats.reduce(
+      (total: number, stat: ClientSessionStat) => total + Number(stat.active || 0),
+      0,
     );
-    const activeSessions = sessionsNested.flat().length;
 
     return NextResponse.json({
       realm: realm.realm,
@@ -49,6 +47,7 @@ export async function GET() {
       activeSessions,
     });
   } catch (error: unknown) {
-    return NextResponse.json({ error: await getKeycloakError(error, "Failed to load dashboard") }, { status: 500 });
+    const message = await getKeycloakError(error, "Failed to load dashboard");
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

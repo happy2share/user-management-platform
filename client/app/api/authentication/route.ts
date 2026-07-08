@@ -3,6 +3,8 @@ import { requireRealmAdmin } from "../../lib/api-auth";
 import { keycloakAdminFetch } from "../../lib/keycloak";
 import { getKeycloakError } from "../../lib/keycloak-users";
 
+type AuthenticationSettingsBody = Record<string, unknown>;
+
 function readPolicyValue(
   policy: string | undefined,
   key: string,
@@ -17,7 +19,7 @@ function hasPolicy(policy: string | undefined, key: string) {
   return Boolean(policy?.includes(`${key}(`));
 }
 
-function buildPasswordPolicy(body: any) {
+function buildPasswordPolicy(body: AuthenticationSettingsBody) {
   const parts = [];
   if (body.minLength) parts.push(`length(${Number(body.minLength)})`);
   if (body.requireUppercase) parts.push("upperCase(1)");

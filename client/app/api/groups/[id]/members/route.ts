@@ -4,6 +4,9 @@ import { keycloakAdminFetch } from "../../../../lib/keycloak";
 import { getKeycloakError } from "../../../../lib/keycloak-users";
 
 type RouteContext = { params: Promise<{ id: string }> };
+type KeycloakUser = {
+  id?: string;
+};
 
 async function readMembers(groupId: string) {
   const res = await keycloakAdminFetch(
@@ -40,8 +43,8 @@ async function collectMembers(groupId: string, visited = new Set<string>()) {
     children.map((child: { id: string }) => collectMembers(child.id, new Set(visited))),
   );
 
-  const byId = new Map<string, any>();
-  [...members, ...nestedMembers.flat()].forEach((member: any) => {
+  const byId = new Map<string, KeycloakUser>();
+  [...members, ...nestedMembers.flat()].forEach((member: KeycloakUser) => {
     if (member?.id) byId.set(member.id, member);
   });
 
