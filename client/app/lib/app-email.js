@@ -158,7 +158,11 @@ async function sendSmtpMail({ to, subject, text }) {
     await sendCommand(socket, `RCPT TO:<${to}>`, [250, 251]);
     await sendCommand(socket, "DATA", [354]);
     socket.write(`${buildMessage({ from: config.from, to, subject, text })}\r\n.\r\n`);
-    await readLine(socket);
+    const dataResponse = await readLine(socket);
+    const dataCode = Number(String(dataResponse).slice(0, 3));
+    if (dataCode !== 250) {
+      throw new Error(`SMTP DATA failed: ${dataResponse}`);
+    }
     await sendCommand(socket, "QUIT", [221]);
 
     return { sent: true, skipped: false };
