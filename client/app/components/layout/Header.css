@@ -1,0 +1,345 @@
+.header {
+  height: var(--header-h);
+
+  background: var(--card);
+
+  border-bottom: 1px solid var(--border);
+
+  display: flex;
+  align-items: center;
+
+  padding: 0 20px;
+
+  position: sticky;
+  top: 0;
+
+  z-index: 90;
+}
+
+/* Toggle */
+
+.header-toggle {
+  width: 38px;
+  height: 38px;
+
+  border: none;
+  background: transparent;
+
+  border-radius: 8px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  color: var(--text-muted);
+}
+
+.header-toggle:hover {
+  background: var(--bg);
+}
+
+/* Breadcrumb */
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  margin-left: 12px;
+
+  font-size: 13px;
+}
+
+.breadcrumb-sep {
+  color: var(--text-muted);
+}
+
+.breadcrumb-current {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Right Side */
+
+.header-right {
+  margin-left: auto;
+
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+}
+
+/* Search */
+
+.header-search {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 10px;
+
+  color: var(--text-muted);
+}
+
+.search-input {
+  width: 240px;
+
+  height: 38px;
+
+  padding-left: 34px;
+  padding-right: 12px;
+
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+
+  background: white;
+
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: var(--blue);
+}
+
+/* Icon Buttons */
+
+.hbtn {
+  width: 38px;
+  height: 38px;
+
+  border: 1px solid var(--border);
+  background: white;
+
+  border-radius: 8px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  color: var(--text-muted);
+}
+
+.hbtn:hover {
+  background: var(--bg);
+}
+
+/* Notification */
+
+.notif-dot {
+  width: 8px;
+  height: 8px;
+
+  background: var(--danger);
+
+  border-radius: 50%;
+
+  position: absolute;
+
+  margin-top: -16px;
+  margin-left: 14px;
+}
+
+/* Avatar */
+
+.avatar-btn {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  padding: 4px 10px;
+
+  border: 1px solid var(--border);
+
+  background: white;
+
+  border-radius: 8px;
+
+  cursor: pointer;
+}
+
+.avatar-btn:hover {
+  background: var(--bg);
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+
+  border-radius: 50%;
+
+  background: var(--blue);
+
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.avatar-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Dropdown */
+
+.dropdown-wrap {
+  position: relative;
+}
+
+.dropdown {
+  position: absolute;
+
+  top: calc(100% + 8px);
+  right: 0;
+
+  min-width: 240px;
+
+  background: white;
+
+  border: 1px solid var(--border);
+
+  border-radius: 10px;
+
+  overflow: hidden;
+
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+
+  z-index: 200;
+}
+
+.dropdown-header {
+  padding: 14px 16px;
+
+  border-bottom: 1px solid var(--border);
+}
+
+.dropdown-user-name {
+  font-weight: 600;
+}
+
+.dropdown-user-role {
+  font-size: 12px;
+  color: var(--text-muted);
+
+  margin-top: 4px;
+}
+
+.dropdown-item {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+
+  padding: 12px 16px;
+
+  border: none;
+  background: white;
+
+  cursor: pointer;
+
+  text-align: left;
+
+  font-size: 13px;
+}
+
+.dropdown-item:hover {
+  background: var(--bg);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border);
+}
+
+.dropdown-item.danger {
+  color: var(--danger);
+}
+
+/* Notifications */
+
+.notif-dropdown {
+  width: 320px;
+}
+
+.notif-header {
+  padding: 14px 16px;
+
+  border-bottom: 1px solid var(--border);
+
+  display: flex;
+  justify-content: space-between;
+}
+
+.notif-header-title {
+  font-weight: 600;
+}
+
+.notif-clear {
+  font-size: 12px;
+  color: var(--blue);
+}
+
+.notif-item {
+  padding: 14px 16px;
+
+  border-bottom: 1px solid var(--border);
+}
+
+.notif-item:hover {
+  background: var(--bg);
+}
+
+.notif-item-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.notif-item-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+
+  margin-top: 4px;
+}
+
+/* Mobile */
+
+@media (max-width: 900px) {
+  .header-search {
+    display: none;
+  }
+
+  .avatar-name {
+    display: none;
+  }
+}
+
+.search-icon {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+.search-icon circle,
+.search-icon path,
+.search-icon line,
+.search-icon polyline {
+  fill: none;
+  stroke: currentColor;
+}

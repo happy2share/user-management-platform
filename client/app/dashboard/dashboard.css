@@ -1,0 +1,43 @@
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard-error {
+  color: var(--danger);
+}
+
+.dashboard-info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-info-row:last-child {
+  border-bottom: none;
+}
+
+.dashboard-info-row span {
+  color: var(--text-muted);
+}
+
+.dashboard-user-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-user-row:last-child {
+  border-bottom: none;
+}
+
+.dashboard-user-row p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}

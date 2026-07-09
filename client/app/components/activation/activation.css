@@ -1,0 +1,211 @@
+.activation-shell {
+  min-height: 100vh;
+  background: #f4f6fb;
+  color: #111827;
+  padding: 36px 18px;
+}
+
+.activation-card {
+  width: min(820px, 100%);
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 22px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+  padding: 28px;
+}
+
+.activation-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.activation-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #321fdb, #39f);
+  box-shadow: 0 12px 28px rgba(50, 31, 219, 0.25);
+}
+
+.activation-eyebrow {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 800;
+}
+
+.activation-title {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 44px);
+  line-height: 1.1;
+}
+
+.activation-subtitle {
+  color: #475569;
+  line-height: 1.7;
+  margin: 12px 0 22px;
+}
+
+.activation-steps {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin: 20px 0 26px;
+}
+
+.activation-step-pill {
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  padding: 8px 10px;
+  text-align: center;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.activation-step-pill.done {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.activation-step-pill.active {
+  background: #eef2ff;
+  color: #321fdb;
+  border-color: #c7d2fe;
+}
+
+.activation-form {
+  display: grid;
+  gap: 15px;
+}
+
+.activation-form label {
+  display: grid;
+  gap: 7px;
+  color: #334155;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.activation-form input,
+.activation-form textarea {
+  width: 100%;
+  border: 1px solid #d8dbe0;
+  border-radius: 12px;
+  min-height: 44px;
+  padding: 10px 12px;
+  outline: none;
+  color: #111827;
+  background: #fff;
+}
+
+.activation-form textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.activation-form input:focus,
+.activation-form textarea:focus {
+  border-color: #321fdb;
+  box-shadow: 0 0 0 3px rgba(50, 31, 219, 0.12);
+}
+
+.activation-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.activation-button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: #321fdb;
+  color: #fff;
+  padding: 0 18px;
+  cursor: pointer;
+  font-weight: 900;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.activation-button.secondary {
+  background: #eef2ff;
+  color: #321fdb;
+}
+
+.activation-button:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.activation-alert {
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 14px 0;
+  font-size: 13px;
+}
+
+.activation-alert.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.activation-alert.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.activation-alert.info {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.activation-terms {
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #f8fafc;
+  padding: 16px;
+  color: #334155;
+  line-height: 1.7;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.activation-secret {
+  display: grid;
+  gap: 10px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 16px;
+  background: #f8fafc;
+  padding: 16px;
+}
+
+.activation-secret code {
+  word-break: break-all;
+  font-size: 16px;
+  color: #111827;
+}
+
+.activation-note {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .activation-steps {
+    grid-template-columns: 1fr;
+  }
+}

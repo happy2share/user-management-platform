@@ -1,0 +1,4 @@
+.panelStack {
+  display: grid;
+  gap: 16px;
+}

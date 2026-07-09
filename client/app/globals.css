@@ -1,0 +1,99 @@
+@import "./coreui-assets.css";
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+
+  width: 100%;
+  min-height: 100%;
+
+  background: #f1f5f9;
+
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  color: #1e293b;
+
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+#__next {
+  min-height: 100vh;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.language-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 118px;
+  height: 38px;
+  padding: 0 9px;
+  border: 1px solid #d8dbe0;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+}
+
+.language-selector-icon {
+  display: inline-flex;
+  color: currentColor;
+}
+
+.language-selector select {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.language-selector-auth {
+  margin-left: auto;
+  min-width: 126px;
+}
+
+@media (max-width: 560px) {
+  .language-selector-auth {
+    width: 100%;
+    margin-left: 0;
+  }
+}
