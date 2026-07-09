@@ -175,9 +175,9 @@ export async function createEmailVerificationOtp(user) {
   if (!user?.id) throw new Error("User ID is required");
 
   const otp = generateEmailOtp();
-  const expiresAt = new Date(
-    Date.now() + Number(process.env.EMAIL_VERIFICATION_TOKEN_MINUTES || 10) * 60_000,
-  ).toISOString();
+  const minutesRaw = Number.parseInt(process.env.EMAIL_VERIFICATION_TOKEN_MINUTES || "10", 10);
+  const minutes = Number.isFinite(minutesRaw) && minutesRaw > 0 ? minutesRaw : 10;
+  const expiresAt = new Date(Date.now() + minutes * 60_000).toISOString();
 
   const attributes = {
     ...(user.attributes || {}),
