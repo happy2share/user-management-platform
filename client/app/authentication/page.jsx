@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { RefreshCw, Save } from "lucide-react";
 import AdminLayout from "../components/layout/AdminLayout";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { readApiResponse } from "../lib/api-response";
 import styles from "./authentication.module.css";
 
-const DEFAULTS = {
+const DEFAULT_SETTINGS = {
   minLength: 12,
-  requireUppercase: true,
-  requireLowercase: true,
-  requireDigits: true,
-  requireSpecialChars: true,
+  requireUppercase: false,
+  requireLowercase: false,
+  requireDigits: false,
+  requireSpecialChars: false,
   passwordHistory: 0,
   passwordExpiryDays: 0,
   bruteForceProtected: false,
@@ -23,117 +25,259 @@ const DEFAULTS = {
   otpPolicyDigits: 6,
   otpPolicyLookAheadWindow: 1,
   otpPolicyPeriod: 30,
+  passwordPolicy: "",
 };
 
 export default function AuthenticationPage() {
   const { t } = useLanguage();
-  const [form, setForm] = useState(DEFAULTS);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
-  async function loadSettings() {
+  const loadSettings = useCallback(async () => {
     setLoading(true);
     setError("");
+    setMessage("");
+
     const res = await fetch("/api/authentication", { cache: "no-store" });
-    const data = await res.json();
-    if (!res.ok) setError(data.error || t("authentication.failedLoad"));
-    else setForm({ ...DEFAULTS, ...data });
+    const data = await readApiResponse(res);
+
     setLoading(false);
-  }
+
+    if (!res.ok) {
+      setError(data.error || t("authentication.failedLoad"));
+      return;
+    }
+
+    setSettings({ ...DEFAULT_SETTINGS, ...data });
+  }, [t]);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       loadSettings();
     }, 0);
-    return () => window.clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return () => window.clearTimeout(timer);
+  }, [loadSettings]);
 
-  function update(key, value) {
-    setForm((current) => ({ ...current, [key]: value }));
+  function updateSetting(key, value) {
+    setSettings((current) => ({ ...current, [key]: value }));
   }
 
-  async function saveSettings() {
+  async function saveSettings(event) {
+    event.preventDefault();
     setSaving(true);
-    setMessage("");
     setError("");
+    setMessage("");
+
     const res = await fetch("/api/authentication", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(settings),
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) setError(data.error || t("authentication.failedSave"));
-    else setMessage(t("authentication.saved"));
+    const data = await readApiResponse(res);
+
     setSaving(false);
+
+    if (!res.ok) {
+      setError(data.error || t("authentication.failedSave"));
+      return;
+    }
+
+    setMessage(t("authentication.saved"));
+    loadSettings();
   }
 
   return (
     <AdminLayout title={t("authentication.title")}>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">{t("authentication.title")}</h1>
-          <p className="page-subtitle">{t("authentication.subtitle")}</p>
-        </div>
-        <button className="btn btn-primary" onClick={saveSettings} disabled={saving || loading}>
-          {saving ? t("common.saving") : t("authentication.saveToKeycloak")}
-        </button>
-      </div>
+      <form className={styles.shell} onSubmit={saveSettings}>
+        <header className={styles.header}>
+          <div>
+            <h1>{t("authentication.title")}</h1>
+            <p>{t("authentication.subtitle")}</p>
+          </div>
+          <div className={styles.headerActions}>
+            <button className="btn btn-outline" type="button" onClick={loadSettings} disabled={loading || saving}>
+              <RefreshCw size={16} />
+              {t("common.refresh")}
+            </button>
+            <button className="btn btn-primary" type="submit" disabled={loading || saving}>
+              <Save size={16} />
+              {saving ? t("common.saving") : t("authentication.saveToKeycloak")}
+            </button>
+          </div>
+        </header>
 
-      {error && <div className="card" style={{ color: "#b91c1c" }}>{error}</div>}
-      {message && <div className="card" style={{ color: "#047857" }}>{message}</div>}
-      {loading ? <div className="card">{t("authentication.loading")}</div> : (
-        <div className={styles.panelStack}>
-          <div className="card">
-            <div className="card-header"><p className="card-title">{t("authentication.passwordPolicy")}</p></div>
-            <SettingInput label={t("authentication.minimumLength")} value={form.minLength} onChange={(v) => update("minLength", Number(v))} />
-            <SettingToggle label={t("authentication.requireUppercase")} value={form.requireUppercase} onChange={(v) => update("requireUppercase", v)} />
-            <SettingToggle label={t("authentication.requireLowercase")} value={form.requireLowercase} onChange={(v) => update("requireLowercase", v)} />
-            <SettingToggle label={t("authentication.requireDigits")} value={form.requireDigits} onChange={(v) => update("requireDigits", v)} />
-            <SettingToggle label={t("authentication.requireSpecialCharacters")} value={form.requireSpecialChars} onChange={(v) => update("requireSpecialChars", v)} />
-            <SettingInput label={t("authentication.passwordHistoryCount")} value={form.passwordHistory} onChange={(v) => update("passwordHistory", Number(v))} />
-            <SettingInput label={t("authentication.passwordExpiryDays")} value={form.passwordExpiryDays} onChange={(v) => update("passwordExpiryDays", Number(v))} />
-            <div className="settings-row">
+        {loading && <div className={styles.notice}>{t("authentication.loading")}</div>}
+        {error && <div className={`${styles.notice} ${styles.error}`}>{error}</div>}
+        {message && <div className={`${styles.notice} ${styles.success}`}>{message}</div>}
+
+        <div className="grid-2">
+          <section className="card">
+            <div className="card-header">
               <div>
-                <div className="settings-row-label">{t("authentication.currentKeycloakPolicy")}</div>
-                <div className="settings-row-sub">{form.passwordPolicy || t("authentication.noPasswordPolicy")}</div>
+                <div className="card-title">{t("authentication.passwordPolicy")}</div>
+                <div className="card-subtitle">{t("authentication.currentKeycloakPolicy")}</div>
               </div>
+            </div>
+
+            <div className={styles.formGrid}>
+              <NumberField
+                label={t("authentication.minimumLength")}
+                value={settings.minLength}
+                min={0}
+                onChange={(value) => updateSetting("minLength", value)}
+              />
+              <NumberField
+                label={t("authentication.passwordHistoryCount")}
+                value={settings.passwordHistory}
+                min={0}
+                onChange={(value) => updateSetting("passwordHistory", value)}
+              />
+              <NumberField
+                label={t("authentication.passwordExpiryDays")}
+                value={settings.passwordExpiryDays}
+                min={0}
+                onChange={(value) => updateSetting("passwordExpiryDays", value)}
+              />
+            </div>
+
+            <div className={styles.toggleList}>
+              <Switch label={t("authentication.requireUppercase")} enabled={settings.requireUppercase} onChange={(value) => updateSetting("requireUppercase", value)} />
+              <Switch label={t("authentication.requireLowercase")} enabled={settings.requireLowercase} onChange={(value) => updateSetting("requireLowercase", value)} />
+              <Switch label={t("authentication.requireDigits")} enabled={settings.requireDigits} onChange={(value) => updateSetting("requireDigits", value)} />
+              <Switch label={t("authentication.requireSpecialCharacters")} enabled={settings.requireSpecialChars} onChange={(value) => updateSetting("requireSpecialChars", value)} />
+            </div>
+
+            <div className={styles.policyPreview}>
+              {settings.passwordPolicy || t("authentication.noPasswordPolicy")}
+            </div>
+          </section>
+
+          <section className="card">
+            <div className="card-header">
+              <div>
+                <div className="card-title">{t("authentication.bruteForceProtection")}</div>
+                <div className="card-subtitle">Keycloak realm login lockout controls</div>
+              </div>
+            </div>
+
+            <div className={styles.toggleList}>
+              <Switch label={t("authentication.bruteForceProtection")} enabled={settings.bruteForceProtected} onChange={(value) => updateSetting("bruteForceProtected", value)} />
+              <Switch label={t("authentication.permanentLockout")} enabled={settings.permanentLockout} onChange={(value) => updateSetting("permanentLockout", value)} />
+            </div>
+
+            <div className={styles.formGrid}>
+              <NumberField
+                label={t("authentication.maxLoginFailures")}
+                value={settings.failureFactor}
+                min={1}
+                onChange={(value) => updateSetting("failureFactor", value)}
+              />
+              <NumberField
+                label={t("authentication.waitIncrementSeconds")}
+                value={settings.waitIncrementSeconds}
+                min={0}
+                onChange={(value) => updateSetting("waitIncrementSeconds", value)}
+              />
+              <NumberField
+                label={t("authentication.maxWaitSeconds")}
+                value={settings.maxFailureWaitSeconds}
+                min={0}
+                onChange={(value) => updateSetting("maxFailureWaitSeconds", value)}
+              />
+            </div>
+          </section>
+        </div>
+
+        <section className="card">
+          <div className="card-header">
+            <div>
+              <div className="card-title">{t("authentication.otpPolicy")}</div>
+              <div className="card-subtitle">Authenticator app OTP settings stored in Keycloak</div>
             </div>
           </div>
 
-          <div className="card">
-            <div className="card-header"><p className="card-title">{t("authentication.bruteForceProtection")}</p></div>
-            <SettingToggle label={t("common.enabled")} value={form.bruteForceProtected} onChange={(v) => update("bruteForceProtected", v)} />
-            <SettingInput label={t("authentication.maxLoginFailures")} value={form.failureFactor} onChange={(v) => update("failureFactor", Number(v))} />
-            <SettingInput label={t("authentication.waitIncrementSeconds")} value={form.waitIncrementSeconds} onChange={(v) => update("waitIncrementSeconds", Number(v))} />
-            <SettingInput label={t("authentication.maxWaitSeconds")} value={form.maxFailureWaitSeconds} onChange={(v) => update("maxFailureWaitSeconds", Number(v))} />
-            <SettingToggle label={t("authentication.permanentLockout")} value={form.permanentLockout} onChange={(v) => update("permanentLockout", v)} />
+          <div className={styles.formGridWide}>
+            <SelectField
+              label={t("authentication.otpType")}
+              value={settings.otpPolicyType}
+              options={["totp", "hotp"]}
+              onChange={(value) => updateSetting("otpPolicyType", value)}
+            />
+            <SelectField
+              label={t("authentication.algorithm")}
+              value={settings.otpPolicyAlgorithm}
+              options={["HmacSHA1", "HmacSHA256", "HmacSHA512"]}
+              onChange={(value) => updateSetting("otpPolicyAlgorithm", value)}
+            />
+            <SelectField
+              label={t("authentication.digits")}
+              value={String(settings.otpPolicyDigits)}
+              options={["6", "8"]}
+              onChange={(value) => updateSetting("otpPolicyDigits", Number(value))}
+            />
+            <NumberField
+              label={t("authentication.lookAheadWindow")}
+              value={settings.otpPolicyLookAheadWindow}
+              min={0}
+              onChange={(value) => updateSetting("otpPolicyLookAheadWindow", value)}
+            />
+            <NumberField
+              label={t("authentication.tokenPeriodSeconds")}
+              value={settings.otpPolicyPeriod}
+              min={1}
+              onChange={(value) => updateSetting("otpPolicyPeriod", value)}
+            />
           </div>
-
-          <div className="card">
-            <div className="card-header"><p className="card-title">{t("authentication.otpPolicy")}</p></div>
-            <SettingSelect label={t("authentication.otpType")} value={form.otpPolicyType} options={["totp", "hotp"]} onChange={(v) => update("otpPolicyType", v)} />
-            <SettingSelect label={t("authentication.algorithm")} value={form.otpPolicyAlgorithm} options={["HmacSHA1", "HmacSHA256", "HmacSHA512"]} onChange={(v) => update("otpPolicyAlgorithm", v)} />
-            <SettingInput label={t("authentication.digits")} value={form.otpPolicyDigits} onChange={(v) => update("otpPolicyDigits", Number(v))} />
-            <SettingInput label={t("authentication.lookAheadWindow")} value={form.otpPolicyLookAheadWindow} onChange={(v) => update("otpPolicyLookAheadWindow", Number(v))} />
-            <SettingInput label={t("authentication.tokenPeriodSeconds")} value={form.otpPolicyPeriod} onChange={(v) => update("otpPolicyPeriod", Number(v))} />
-          </div>
-        </div>
-      )}
+        </section>
+      </form>
     </AdminLayout>
   );
 }
 
-function SettingInput({ label, value, onChange }) {
-  return <div className="settings-row"><div><div className="settings-row-label">{label}</div></div><input className="form-input" type="number" value={value ?? 0} onChange={(e) => onChange(e.target.value)} style={{ width: 110 }} /></div>;
+function NumberField({ label, value, min, onChange }) {
+  return (
+    <label className={styles.field}>
+      <span>{label}</span>
+      <input
+        className="form-input"
+        type="number"
+        min={min}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </label>
+  );
 }
 
-function SettingToggle({ label, value, onChange }) {
-  return <div className="settings-row"><div><div className="settings-row-label">{label}</div></div><button type="button" className={`toggle ${value ? "on" : ""}`} onClick={() => onChange(!value)} /></div>;
+function SelectField({ label, value, options, onChange }) {
+  return (
+    <label className={styles.field}>
+      <span>{label}</span>
+      <select className="form-input" value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
-function SettingSelect({ label, value, options, onChange }) {
-  return <div className="settings-row"><div><div className="settings-row-label">{label}</div></div><select className="form-input" value={value} onChange={(e) => onChange(e.target.value)} style={{ width: 170 }}>{options.map((o) => <option key={o} value={o}>{o}</option>)}</select></div>;
+function Switch({ label, enabled, onChange }) {
+  return (
+    <button
+      className={`${styles.switch} ${enabled ? styles.switchOn : ""}`}
+      type="button"
+      aria-pressed={enabled}
+      onClick={() => onChange(!enabled)}
+    >
+      <span aria-hidden="true" />
+      <b>{label}</b>
+      <em>{enabled ? "On" : "Off"}</em>
+    </button>
+  );
 }

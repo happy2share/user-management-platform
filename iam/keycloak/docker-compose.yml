@@ -46,7 +46,7 @@ services:
       - "${KC_PORT}:8080"
     environment:
       KC_DB: mysql
-      KC_DB_URL: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+      KC_DB_URL: jdbc:mysql://${DB_HOST}:3306/${DB_NAME}
       KC_DB_USERNAME: ${DB_USERNAME}
       KC_DB_PASSWORD: ${DB_PASSWORD}
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN}
@@ -57,8 +57,26 @@ services:
     networks:
       - keycloak-net
 
+  redis:
+    image: redis:7-alpine
+    container_name: iam-platform-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - keycloak-net
+
 volumes:
   mysql_data:
+  redis_data:
 
 networks:
   keycloak-net:

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AdminLayout from "../components/layout/AdminLayout";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { readApiResponse } from "../lib/api-response";
 import { Users, FolderTree, Activity, Globe } from "lucide-react";
 import "./dashboard.css";
 
@@ -36,14 +37,19 @@ export default function DashboardPage() {
       if (!realmRes.ok) throw new Error(t("dashboard.failedRealm"));
 
       const [users, groups, sessions, realm] = await Promise.all([
-        usersRes.json(),
-        groupsRes.json(),
-        sessionsRes.json(),
-        realmRes.json(),
+        readApiResponse(usersRes),
+        readApiResponse(groupsRes),
+        readApiResponse(sessionsRes),
+        readApiResponse(realmRes),
       ]);
 
+      const normalizedUsers = (Array.isArray(users) ? users : []).map((user) => ({
+        ...user,
+        enabled: user.enabled !== false,
+      }));
+
       setData({
-        users: Array.isArray(users) ? users : [],
+        users: normalizedUsers,
         groups: Array.isArray(groups) ? groups : [],
         sessions: Array.isArray(sessions) ? sessions : [],
         realm,
@@ -63,7 +69,7 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const enabledUsers = data.users.filter((u) => u.enabled !== false).length;
+  const enabledUsers = data.users.filter((u) => u.enabled === true).length;
   const disabledUsers = data.users.filter((u) => u.enabled === false).length;
 
   return (
@@ -197,12 +203,12 @@ export default function DashboardPage() {
 
                   <span
                     className={
-                      user.enabled
+                      user.enabled === true
                         ? "badge badge-success"
                         : "badge badge-danger"
                     }
                   >
-                    {user.enabled ? t("common.enabled") : t("common.disabled")}
+                    {user.enabled === true ? t("common.enabled") : t("common.disabled")}
                   </span>
                 </div>
               ))}

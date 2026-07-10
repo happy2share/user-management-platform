@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../lib/api-auth";
-import { keycloakAdminFetch } from "../../lib/keycloak";
-import { getKeycloakError } from "../../lib/keycloak-users";
-import { normalizeObjectTextFields } from "../../lib/english-normalizer";
+import { keycloakAdminFetch, keycloakAdminFetchAll } from "../../lib/keycloak";
+import { normalizeObjectTextFields } from "../../i18n/english-normalizer";
 
 type KeycloakGroup = {
   id: string;
@@ -11,47 +10,41 @@ type KeycloakGroup = {
   subGroups?: KeycloakGroup[];
 };
 
-type EnrichedGroup = {
-  subGroupCount?: number;
-  memberIds?: string[];
+type KeycloakMember = {
+  id: string;
 };
 
-async function readJsonOrEmptyArray(res: Response) {
-  if (!res.ok) {
-    throw new Error(await getKeycloakError(res, "Failed to load group data"));
-  }
-  return res.json();
-}
+type EnrichedGroup = {
+  id: string;
+  name?: string;
+  path?: string;
+  directMemberCount: number;
+  memberCount: number;
+  subGroupCount: number;
+  memberIds: string[];
+  subGroups: EnrichedGroup[];
+};
 
 async function getDirectGroupMembers(groupId: string) {
-  const res = await keycloakAdminFetch(
-    `/groups/${encodeURIComponent(groupId)}/members?first=0&max=1000&briefRepresentation=false`,
-  );
-
-  return readJsonOrEmptyArray(res);
+  return keycloakAdminFetchAll(
+    `/groups/${encodeURIComponent(groupId)}/members?briefRepresentation=false`,
+  ) as Promise<KeycloakMember[]>;
 }
 
 async function getGroupChildren(group: KeycloakGroup, visited: Set<string>) {
   if (visited.has(group.id)) return [];
   visited.add(group.id);
 
-  const childrenRes = await keycloakAdminFetch(
-    `/groups/${encodeURIComponent(group.id)}/children?briefRepresentation=false&first=0&max=1000`,
-  );
-
-  if (!childrenRes.ok) {
-    throw new Error(
-      await getKeycloakError(childrenRes, "Failed to load child groups"),
-    );
-  }
-  const children = await childrenRes.json();
+  const children = await keycloakAdminFetchAll(
+    `/groups/${encodeURIComponent(group.id)}/children?briefRepresentation=false`,
+  ) as KeycloakGroup[];
 
   return Promise.all(
     children.map((child: KeycloakGroup) => enrichGroup(child, new Set(visited))),
   );
 }
 
-async function enrichGroup(group: KeycloakGroup, visited = new Set<string>()) {
+async function enrichGroup(group: KeycloakGroup, visited = new Set<string>()): Promise<EnrichedGroup> {
   const [directMembers, subGroups] = await Promise.all([
     getDirectGroupMembers(group.id),
     getGroupChildren(group, visited),
@@ -62,10 +55,10 @@ async function enrichGroup(group: KeycloakGroup, visited = new Set<string>()) {
     candidate.memberIds?.forEach((id: string) => nestedMemberIds.add(id));
   };
   subGroups.forEach(collect);
-  directMembers.forEach((member: { id: string }) => nestedMemberIds.add(member.id));
+  directMembers.forEach((member) => nestedMemberIds.add(member.id));
 
   const nestedSubGroupCount = subGroups.reduce(
-    (total: number, child: EnrichedGroup) => total + 1 + (child.subGroupCount || 0),
+    (total, child) => total + 1 + (child.subGroupCount || 0),
     0,
   );
 
@@ -86,16 +79,9 @@ export async function GET() {
   if (unauthorized) return unauthorized;
 
   try {
-    const res = await keycloakAdminFetch("/groups?briefRepresentation=false&first=0&max=1000");
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: await getKeycloakError(res, "Failed to fetch groups") },
-        { status: res.status },
-      );
-    }
-
-    const groups = await res.json();
+    const groups = await keycloakAdminFetchAll(
+      "/groups?briefRepresentation=false",
+    ) as KeycloakGroup[];
 
     const enrichedGroups = await Promise.all(
       groups.map((group: KeycloakGroup) => enrichGroup(group)),
@@ -104,7 +90,7 @@ export async function GET() {
     return NextResponse.json(enrichedGroups);
   } catch (err: unknown) {
     return NextResponse.json(
-      { error: await getKeycloakError(err, "Failed to fetch groups") },
+      { error: err instanceof Error ? err.message : "Failed to fetch groups" },
       { status: 500 },
     );
   }
@@ -135,7 +121,7 @@ export async function POST(req: Request) {
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: await getKeycloakError(res, "Failed to create group") },
+        { error: await res.text() },
         { status: res.status },
       );
     }
@@ -146,7 +132,7 @@ export async function POST(req: Request) {
     );
   } catch (err: unknown) {
     return NextResponse.json(
-      { error: await getKeycloakError(err, "Failed to create group") },
+      { error: err instanceof Error ? err.message : "Failed to create group" },
       { status: 500 },
     );
   }

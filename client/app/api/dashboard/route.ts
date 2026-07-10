@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../lib/api-auth";
-import { keycloakAdminFetch } from "../../lib/keycloak";
+import { keycloakAdminFetch, keycloakAdminFetchAll } from "../../lib/keycloak";
 import { getKeycloakError } from "../../lib/keycloak-users";
 
 type ClientSessionStat = {
-  active?: number | string;
+  active?: string | number;
 };
 
 async function jsonOrThrow(path: string) {
@@ -20,15 +20,15 @@ export async function GET() {
   try {
     const [realm, users, roles, groups, clients, clientSessionStats] = await Promise.all([
       jsonOrThrow(""),
-      jsonOrThrow("/users?max=200"),
+      keycloakAdminFetchAll("/users"),
       jsonOrThrow("/roles"),
       jsonOrThrow("/groups"),
       jsonOrThrow("/clients"),
       jsonOrThrow("/client-session-stats"),
     ]);
 
-    const enabledUsers = users.filter((u: { enabled?: boolean }) => u.enabled).length;
-    const disabledUsers = users.length - enabledUsers;
+    const enabledUsers = users.filter((u: { enabled?: boolean }) => u.enabled !== false).length;
+    const disabledUsers = users.filter((u: { enabled?: boolean }) => u.enabled === false).length;
     const activeSessions = clientSessionStats.reduce(
       (total: number, stat: ClientSessionStat) => total + Number(stat.active || 0),
       0,
@@ -47,7 +47,6 @@ export async function GET() {
       activeSessions,
     });
   } catch (error: unknown) {
-    const message = await getKeycloakError(error, "Failed to load dashboard");
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to load dashboard" }, { status: 500 });
   }
 }

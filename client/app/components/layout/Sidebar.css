@@ -75,7 +75,7 @@
   color: rgba(255, 255, 255, 0.35);
 
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
 }
 
 .nav-item {

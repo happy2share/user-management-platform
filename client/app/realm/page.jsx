@@ -1,8 +1,10 @@
 "use client";
 
+import { Copy, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import AdminLayout from "../components/layout/AdminLayout";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { readApiResponse } from "../lib/api-response";
 import "../realms/realms.css";
 
 const DEFAULT_REALM = {
@@ -17,6 +19,7 @@ const DEFAULT_REALM = {
   editUsernameAllowed: false,
   verifyEmail: false,
   bruteForceProtected: false,
+  sslRequired: "external",
 };
 
 export default function RealmPage() {
@@ -24,8 +27,7 @@ export default function RealmPage() {
   const [realm, setRealm] = useState(DEFAULT_REALM);
   const [settings, setSettings] = useState(DEFAULT_REALM);
   const [loading, setLoading] = useState(true);
-  const [savingRealm, setSavingRealm] = useState(false);
-  const [savingSettings, setSavingSettings] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -40,8 +42,8 @@ export default function RealmPage() {
         fetch("/api/settings", { cache: "no-store" }),
       ]);
       const [realmData, settingsData] = await Promise.all([
-        realmRes.json(),
-        settingsRes.json(),
+        readApiResponse(realmRes),
+        readApiResponse(settingsRes),
       ]);
 
       if (!realmRes.ok) throw new Error(realmData.error || t("realm.failedLoad"));
@@ -66,208 +68,234 @@ export default function RealmPage() {
 
   function updateRealm(key, value) {
     setRealm((current) => ({ ...current, [key]: value }));
-    setSettings((current) => ({ ...current, [key]: value }));
   }
 
   function updateSettings(key, value) {
     setSettings((current) => ({ ...current, [key]: value }));
-    setRealm((current) => ({ ...current, [key]: value }));
   }
 
-  async function saveRealm() {
-    setSavingRealm(true);
+  async function saveAll() {
+    setSaving(true);
     setError("");
     setMessage("");
 
-    try {
-      const response = await fetch("/api/realms", {
+    const mergedSettings = {
+      ...settings,
+      enabled: realm.enabled,
+      displayName: realm.displayName,
+      registrationAllowed: realm.registrationAllowed,
+      resetPasswordAllowed: realm.resetPasswordAllowed,
+      rememberMe: realm.rememberMe,
+      loginWithEmailAllowed: realm.loginWithEmailAllowed,
+      verifyEmail: realm.verifyEmail,
+    };
+
+    const [realmResponse, settingsResponse] = await Promise.all([
+      fetch("/api/realms", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(realm),
-      });
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) throw new Error(data.error || t("realm.failedSaveRealm"));
-      await loadRealm();
-      setMessage(t("realm.realmSaved"));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("realm.failedSaveRealm"));
-    } finally {
-      setSavingRealm(false);
-    }
-  }
-
-  async function saveSettings() {
-    setSavingSettings(true);
-    setError("");
-    setMessage("");
-
-    try {
-      const response = await fetch("/api/settings", {
+      }),
+      fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
-      });
-      const data = await response.json().catch(() => ({}));
+        body: JSON.stringify(mergedSettings),
+      }),
+    ]);
 
-      if (!response.ok) throw new Error(data.error || t("realm.failedSaveSettings"));
-      await loadRealm();
-      setMessage(t("realm.settingsSaved"));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("realm.failedSaveSettings"));
-    } finally {
-      setSavingSettings(false);
+    const [realmData, settingsData] = await Promise.all([
+      readApiResponse(realmResponse),
+      readApiResponse(settingsResponse),
+    ]);
+
+    if (!realmResponse.ok) setError(realmData.error || t("realm.failedSaveRealm"));
+    else if (!settingsResponse.ok) setError(settingsData.error || t("realm.failedSaveSettings"));
+    else {
+      setSettings(mergedSettings);
+      setMessage(t("realm.realmSaved"));
     }
+
+    setSaving(false);
   }
+
+  const realmName = realm.realm || settings.realmName || "";
 
   return (
     <AdminLayout title={t("realm.title")}>
-      <div className="page-header realms-header">
-        <div>
-          <div className="page-title">{t("realm.title")}</div>
-          <div className="page-subtitle">{t("realm.subtitle")}</div>
-        </div>
-
-        <button className="btn btn-outline" onClick={loadRealm} disabled={loading}>
-          {t("common.refresh")}
-        </button>
-      </div>
-
-      {error && <div className="card" style={{ color: "#b91c1c" }}>{error}</div>}
-      {message && <div className="card" style={{ color: "#047857" }}>{message}</div>}
-
-      {loading ? (
-        <div className="card">{t("realm.loading")}</div>
-      ) : (
-        <div className="grid-2">
-          <div className="card">
-            <div className="card-header">
-              <div>
-                <div className="card-title">{t("realm.details")}</div>
-                <div className="card-subtitle">{t("realm.detailsSubtitle")}</div>
-              </div>
-            </div>
-
-            <div className="realm-form-grid">
-              <div className="form-group">
-                <label className="form-label">{t("realm.realmName")}</label>
-                <input className="form-input" value={realm.realm || settings.realmName || ""} disabled />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">{t("realm.displayName")}</label>
-                <input
-                  className="form-input"
-                  value={realm.displayName || ""}
-                  onChange={(event) => updateRealm("displayName", event.target.value)}
-                />
-              </div>
-
-              <RealmToggle label={t("realm.realmEnabled")} value={realm.enabled} onChange={(value) => updateRealm("enabled", value)} />
-              <RealmToggle label={t("realm.userRegistration")} value={realm.registrationAllowed} onChange={(value) => updateRealm("registrationAllowed", value)} />
-              <RealmToggle label={t("realm.loginWithEmail")} value={realm.loginWithEmailAllowed} onChange={(value) => updateRealm("loginWithEmailAllowed", value)} />
-              <RealmToggle label={t("realm.passwordReset")} value={realm.resetPasswordAllowed} onChange={(value) => updateRealm("resetPasswordAllowed", value)} />
-              <RealmToggle label={t("realm.rememberMe")} value={realm.rememberMe} onChange={(value) => updateRealm("rememberMe", value)} />
-              <RealmToggle label={t("realm.verifyEmail")} value={realm.verifyEmail} onChange={(value) => updateRealm("verifyEmail", value)} />
-              <RealmToggle label={t("realm.bruteForceProtection")} value={realm.bruteForceProtected} onChange={(value) => updateRealm("bruteForceProtected", value)} />
-            </div>
-
-            <div className="realm-actions">
-              <button className="btn btn-primary" onClick={saveRealm} disabled={savingRealm}>
-                {savingRealm ? t("common.saving") : t("realm.saveRealm")}
-              </button>
-            </div>
+      <section className="realm-page">
+        <header className="realm-kc-header">
+          <div>
+            <h1>{realmName || t("realm.title")}</h1>
+            <p>
+              Realm settings control options for users, applications, roles, and groups in this realm.
+              <a href="https://www.keycloak.org/docs/latest/server_admin/" target="_blank" rel="noreferrer">
+                Learn more <ExternalLink size={12} />
+              </a>
+            </p>
           </div>
 
-          <div className="card">
-            <div className="card-header">
-              <div>
-                <div className="card-title">{t("realm.connectionSettings")}</div>
-                <div className="card-subtitle">{t("realm.connectionSubtitle")}</div>
-              </div>
-            </div>
-
-            <InfoRow label={t("realm.keycloakUrl")} value={settings.keycloakBaseUrl} />
-            <InfoRow label={t("realm.title")} value={settings.realmName} />
-            <InfoRow label={t("realm.adminApiClient")} value={settings.adminClientId} />
-            <InfoRow label={t("realm.nextAuthUrl")} value={settings.nextAuthUrl} />
-
-            <div className="settings-row">
-              <div>
-                <div className="settings-row-label">{t("realm.displayName")}</div>
-              </div>
-              <input
-                className="form-input"
-                value={settings.displayName || ""}
-                onChange={(event) => updateSettings("displayName", event.target.value)}
-                style={{ width: 260 }}
-              />
-            </div>
-
-            <SettingToggle label={t("realm.realmEnabled")} value={settings.enabled} onChange={(value) => updateSettings("enabled", value)} />
-            <SettingToggle label={t("realm.userRegistrationAllowed")} value={settings.registrationAllowed} onChange={(value) => updateSettings("registrationAllowed", value)} />
-            <SettingToggle label={t("realm.forgotPasswordAllowed")} value={settings.resetPasswordAllowed} onChange={(value) => updateSettings("resetPasswordAllowed", value)} />
-            <SettingToggle label={t("realm.rememberMe")} value={settings.rememberMe} onChange={(value) => updateSettings("rememberMe", value)} />
-            <SettingToggle label={t("realm.loginWithEmail")} value={settings.loginWithEmailAllowed} onChange={(value) => updateSettings("loginWithEmailAllowed", value)} />
-            <SettingToggle label={t("realm.duplicateEmailsAllowed")} value={settings.duplicateEmailsAllowed} onChange={(value) => updateSettings("duplicateEmailsAllowed", value)} />
-            <SettingToggle label={t("realm.editUsernameAllowed")} value={settings.editUsernameAllowed} onChange={(value) => updateSettings("editUsernameAllowed", value)} />
-            <SettingToggle label={t("realm.verifyEmail")} value={settings.verifyEmail} onChange={(value) => updateSettings("verifyEmail", value)} />
-
-            <div className="realm-actions">
-              <button className="btn btn-primary" onClick={saveSettings} disabled={savingSettings}>
-                {savingSettings ? t("common.saving") : t("realm.saveSettings")}
-              </button>
-            </div>
+          <div className="realm-header-actions">
+            <StatusToggle
+              label={realm.enabled ? t("common.enabled") : t("common.disabled")}
+              value={realm.enabled}
+              onChange={(value) => updateRealm("enabled", value)}
+            />
+            <button className="btn btn-outline" type="button" onClick={loadRealm} disabled={loading}>
+              {t("common.refresh")}
+            </button>
           </div>
-        </div>
-      )}
+        </header>
+
+        <div className="realm-section-title">General</div>
+
+        {error && <div className="realm-alert error">{error}</div>}
+        {message && <div className="realm-alert success">{message}</div>}
+
+        {loading ? (
+          <div className="card">{t("realm.loading")}</div>
+        ) : (
+          <div className="realm-form-panel">
+            <RealmField label={t("realm.realmName")} required>
+              <div className="realm-copy-input">
+                <input value={realmName} disabled />
+                <button type="button" aria-label="Copy realm name" onClick={() => navigator.clipboard?.writeText(realmName)}>
+                  <Copy size={14} />
+                </button>
+              </div>
+            </RealmField>
+
+            <RealmField label={t("realm.displayName")}>
+              <input value={realm.displayName || ""} onChange={(event) => updateRealm("displayName", event.target.value)} />
+            </RealmField>
+
+            <RealmField label="HTML Display name">
+              <input value={realm.displayName || ""} disabled />
+            </RealmField>
+
+            <RealmField label="Frontend URL" info>
+              <input value={settings.nextAuthUrl || ""} disabled />
+            </RealmField>
+
+            <RealmField label="Require SSL" info>
+              <select value={realm.sslRequired || "external"} onChange={(event) => updateRealm("sslRequired", event.target.value)}>
+                <option value="external">External requests</option>
+                <option value="all">All requests</option>
+                <option value="none">None</option>
+              </select>
+            </RealmField>
+
+            <RealmField label="ACR to LoA Mapping" info>
+              <div className="realm-empty-mapping">
+                <p>No ACR to LoA Mapping has been defined yet.</p>
+                <button type="button">Add ACR to LoA Mapping</button>
+              </div>
+            </RealmField>
+
+            <RealmField label="User-managed access" info>
+              <StatusToggle label="Off" value={false} onChange={() => {}} />
+            </RealmField>
+
+            <RealmField label="Organizations" info>
+              <StatusToggle label="Off" value={false} onChange={() => {}} />
+            </RealmField>
+
+            <RealmField label="Admin Permissions" info>
+              <StatusToggle label="Off" value={false} onChange={() => {}} />
+            </RealmField>
+
+            <RealmField label={t("realm.userRegistration")}>
+              <StatusToggle label={realm.registrationAllowed ? t("common.enabled") : t("common.disabled")} value={realm.registrationAllowed} onChange={(value) => updateRealm("registrationAllowed", value)} />
+            </RealmField>
+
+            <RealmField label={t("realm.loginWithEmail")}>
+              <StatusToggle label={realm.loginWithEmailAllowed ? t("common.enabled") : t("common.disabled")} value={realm.loginWithEmailAllowed} onChange={(value) => updateRealm("loginWithEmailAllowed", value)} />
+            </RealmField>
+
+            <RealmField label={t("realm.passwordReset")}>
+              <StatusToggle label={realm.resetPasswordAllowed ? t("common.enabled") : t("common.disabled")} value={realm.resetPasswordAllowed} onChange={(value) => updateRealm("resetPasswordAllowed", value)} />
+            </RealmField>
+
+            <RealmField label={t("realm.rememberMe")}>
+              <StatusToggle label={realm.rememberMe ? t("common.enabled") : t("common.disabled")} value={realm.rememberMe} onChange={(value) => updateRealm("rememberMe", value)} />
+            </RealmField>
+
+            <RealmField label={t("realm.verifyEmail")}>
+              <StatusToggle label={realm.verifyEmail ? t("common.enabled") : t("common.disabled")} value={realm.verifyEmail} onChange={(value) => updateRealm("verifyEmail", value)} />
+            </RealmField>
+
+            <RealmField label={t("realm.duplicateEmailsAllowed")}>
+              <StatusToggle label={settings.duplicateEmailsAllowed ? t("common.enabled") : t("common.disabled")} value={settings.duplicateEmailsAllowed} onChange={(value) => updateSettings("duplicateEmailsAllowed", value)} />
+            </RealmField>
+
+            <RealmField label={t("realm.editUsernameAllowed")}>
+              <StatusToggle label={settings.editUsernameAllowed ? t("common.enabled") : t("common.disabled")} value={settings.editUsernameAllowed} onChange={(value) => updateSettings("editUsernameAllowed", value)} />
+            </RealmField>
+
+            <RealmField label={t("realm.bruteForceProtection")}>
+              <StatusToggle label={realm.bruteForceProtected ? t("common.enabled") : t("common.disabled")} value={realm.bruteForceProtected} onChange={(value) => updateRealm("bruteForceProtected", value)} />
+            </RealmField>
+
+            <RealmField label="Unmanaged Attributes" info>
+              <select value="disabled" onChange={() => {}}>
+                <option value="disabled">Disabled</option>
+              </select>
+            </RealmField>
+
+            <RealmField label="Signature algorithm SAML IdP metadata" info>
+              <select value="" onChange={() => {}}>
+                <option value="">Choose...</option>
+              </select>
+            </RealmField>
+
+            <RealmField label="Endpoints" info>
+              <div className="realm-links">
+                <a href={`${settings.keycloakBaseUrl}/realms/${realmName}/.well-known/openid-configuration`} target="_blank" rel="noreferrer">
+                  OpenID Endpoint Configuration <ExternalLink size={12} />
+                </a>
+                <a href={`${settings.keycloakBaseUrl}/realms/${realmName}/protocol/saml/descriptor`} target="_blank" rel="noreferrer">
+                  SAML 2.0 Identity Provider Metadata <ExternalLink size={12} />
+                </a>
+              </div>
+            </RealmField>
+          </div>
+        )}
+
+        <footer className="realm-save-bar">
+          <button className="btn btn-primary" type="button" onClick={saveAll} disabled={saving || loading}>
+            {saving ? t("common.saving") : t("common.save")}
+          </button>
+          <button className="btn btn-outline" type="button" onClick={loadRealm} disabled={saving || loading}>
+            Revert
+          </button>
+        </footer>
+      </section>
     </AdminLayout>
   );
 }
 
-function InfoRow({ label, value }) {
-  const { t } = useLanguage();
-
+function RealmField({ label, required = false, info = false, children }) {
   return (
-    <div className="settings-row">
-      <div>
-        <div className="settings-row-label">{label}</div>
-        <div className="settings-row-sub">{value || t("common.dash")}</div>
-      </div>
+    <div className="realm-field">
+      <label>
+        {label}
+        {required && <span>*</span>}
+        {info && <small>i</small>}
+      </label>
+      <div>{children}</div>
     </div>
   );
 }
 
-function RealmToggle({ label, value, onChange }) {
-  const { t } = useLanguage();
-
+function StatusToggle({ label, value, onChange }) {
   return (
-    <div className="realm-toggle-row">
-      <div>
-        <div className="realm-toggle-label">{label}</div>
-        <div className="realm-toggle-value">{value ? t("common.enabled") : t("common.disabled")}</div>
-      </div>
-
+    <span className="realm-switch-wrap">
       <button
         type="button"
-        className={`toggle ${value ? "on" : ""}`}
+        className={`realm-switch ${value ? "on" : ""}`}
+        aria-pressed={value}
         onClick={() => onChange(!value)}
       />
-    </div>
-  );
-}
-
-function SettingToggle({ label, value, onChange }) {
-  return (
-    <div className="settings-row">
-      <div>
-        <div className="settings-row-label">{label}</div>
-      </div>
-      <button
-        type="button"
-        className={`toggle ${value ? "on" : ""}`}
-        onClick={() => onChange(!value)}
-      />
-    </div>
+      <span>{label}</span>
+    </span>
   );
 }

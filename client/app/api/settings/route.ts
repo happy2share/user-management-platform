@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../lib/api-auth";
 import { keycloakAdminFetch } from "../../lib/keycloak";
 import { getKeycloakError } from "../../lib/keycloak-users";
 import { KEYCLOAK_BASE_URL, KEYCLOAK_REALM, KEYCLOAK_ADMIN_CLIENT_ID } from "../../lib/constants";
-import { normalizeObjectTextFields } from "../../lib/english-normalizer";
+import { normalizeObjectTextFields } from "../../i18n/english-normalizer";
 
 export async function GET() {
   const unauthorized = await requireRealmAdmin();
@@ -28,10 +28,9 @@ export async function GET() {
       duplicateEmailsAllowed: Boolean(realm.duplicateEmailsAllowed),
       editUsernameAllowed: Boolean(realm.editUsernameAllowed),
       verifyEmail: Boolean(realm.verifyEmail),
-      bruteForceProtected: Boolean(realm.bruteForceProtected),
     });
   } catch (error: unknown) {
-    return NextResponse.json({ error: await getKeycloakError(error, "Failed to load settings") }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to load settings" }, { status: 500 });
   }
 }
 
@@ -51,13 +50,12 @@ export async function PUT(req: Request) {
       duplicateEmailsAllowed: Boolean(body.duplicateEmailsAllowed),
       editUsernameAllowed: Boolean(body.editUsernameAllowed),
       verifyEmail: Boolean(body.verifyEmail),
-      bruteForceProtected: Boolean(body.bruteForceProtected),
     };
 
     const res = await keycloakAdminFetch("", { method: "PUT", body: JSON.stringify(payload) });
     if (!res.ok) throw new Error(await getKeycloakError(res, "Failed to update settings"));
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: await getKeycloakError(error, "Failed to save settings") }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to save settings" }, { status: 500 });
   }
 }

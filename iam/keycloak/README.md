@@ -1,6 +1,6 @@
 # Keycloak + MySQL (Docker)
 
-A ready-to-run local development environment for **Keycloak** (login and identity management), **MySQL** (database), and **Adminer** (simple database browser).
+A ready-to-run local development environment for **Keycloak** (login and identity management), **MySQL** (database), **Adminer** (simple database browser), and **Redis** (application rate limiting).
 
 Use this guide whether you are running it for the first time or tuning it for your own setup.
 
@@ -24,13 +24,14 @@ Use this guide whether you are running it for the first time or tuning it for yo
 
 ## What is this?
 
-This folder starts three Docker containers that work together:
+This folder starts four Docker containers that work together:
 
 | What you get | What it does | Open in browser |
 |--------------|--------------|-----------------|
 | **Keycloak** | Manages users, logins, and access for your apps | http://localhost:8081 |
 | **MySQL** | Stores Keycloak data (users, realms, settings) | — (use Adminer or a DB tool) |
 | **Adminer** | Simple web UI to view and query the database | http://localhost:2222 |
+| **Redis** | Stores application rate-limit counters | `localhost:6379` |
 
 You do **not** need to install Keycloak or MySQL on your machine. Docker runs everything in isolated containers.
 
@@ -91,7 +92,7 @@ docker compose --env-file .env.example up -d
 What this does:
 - Downloads images on first run (may take a few minutes)
 - Starts MySQL, waits until it is healthy
-- Then starts Keycloak and Adminer
+- Then starts Keycloak, Adminer, and Redis
 
 ### Step 4 — Wait for Keycloak
 
@@ -103,7 +104,7 @@ Check progress:
 docker compose --env-file .env.example ps
 ```
 
-You want all three services **Up**. MySQL should show **healthy**.
+You want all four services **Up**. MySQL and Redis should show **healthy**.
 
 Watch Keycloak logs until you see `Listening on`:
 
@@ -166,6 +167,7 @@ You should see tables like `user_entity`, `realm`, etc. — that is Keycloak's d
 | Keycloak  | http://localhost:8081 |
 | Keycloak admin | http://localhost:8081/admin |
 | Adminer   | http://localhost:2222 |
+| Redis     | `redis://localhost:6379` |
 
 ### Credentials (defaults)
 
@@ -182,6 +184,7 @@ You should see tables like `user_entity`, `realm`, etc. — that is Keycloak's d
 | 8081  | Keycloak (change with `KC_PORT` in `.env.example`) |
 | 2222  | Adminer (change with `MYSQL_CLIENT_PORT`) |
 | 3306  | MySQL (change with `DB_PORT`) |
+| 6379  | Redis (change with `REDIS_PORT`) |
 
 ---
 
@@ -203,6 +206,7 @@ docker compose --env-file .env.example logs -f
 docker logs -f keycloak-docker-mysql
 docker logs -f keycloak-mysql
 docker logs -f keycloak-adminer
+docker logs -f iam-platform-redis
 
 # Stop everything (data is kept)
 docker compose --env-file .env.example down
@@ -236,6 +240,7 @@ docker compose --env-file .env.example up -d
 | `KC_PORT`           | `8081`         | Keycloak port on your machine |
 | `KC_ADMIN`          | `admin`        | Keycloak admin username |
 | `KC_ADMIN_PASSWORD` | `admin`        | Keycloak admin password |
+| `REDIS_PORT`        | `6379`         | Redis port on your machine |
 
 After editing `.env.example`:
 
@@ -317,11 +322,13 @@ flowchart LR
     Keycloak["Keycloak :8080"]
     Adminer["Adminer :8080"]
     MySQL["MySQL :3306"]
+    Redis["Redis :6379"]
   end
 
   Browser -->|"localhost:8081"| Keycloak
   Browser -->|"localhost:2222"| Adminer
   Browser -->|"localhost:3306"| MySQL
+  Browser -->|"localhost:6379"| Redis
   Keycloak -->|"jdbc:mysql://mysql:3306/keycloak"| MySQL
   Adminer -->|"mysql:3306"| MySQL
 ```
@@ -340,12 +347,14 @@ flowchart LR
 | MySQL     | `mysql:8.4`                        | `keycloak-mysql`        |
 | Keycloak  | `quay.io/keycloak/keycloak:26.6.2` | `keycloak-docker-mysql` |
 | Adminer   | `adminer:4`                        | `keycloak-adminer`      |
+| Redis     | `redis:7-alpine`                   | `iam-platform-redis`    |
 
 ### Volumes
 
 | Mount | Purpose |
 |-------|---------|
 | `mysql_data` (Docker volume) | Persists database across restarts |
+| `redis_data` (Docker volume) | Persists Redis data across restarts |
 | `./keycloak/import` | Realm JSON files for import |
 | `./keycloak-themes` | Custom UI themes |
 
@@ -458,7 +467,7 @@ Install Docker: https://docs.docker.com/get-docker/
 
 ```
 iam/keycloak/
-├── docker-compose.yml   # Defines MySQL, Keycloak, Adminer
+├── docker-compose.yml   # Defines MySQL, Keycloak, Adminer, Redis
 ├── .env.example         # Docker Compose passwords and ports
 ├── README.md            # This file
 ├── keycloak/

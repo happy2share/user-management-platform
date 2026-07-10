@@ -5,6 +5,7 @@ import AdminLayout from "../components/layout/AdminLayout";
 import Modal from "../components/common/Modal";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getRoleLabel } from "../i18n/role-labels";
+import { readApiResponse } from "../lib/api-response";
 import styles from "./users.module.css";
 
 const DEFAULT_FORM = {
@@ -18,15 +19,19 @@ const DEFAULT_FORM = {
   enabled: true,
 };
 
-const ALL_ROLES = ["realm-admin", "app-supervisor", "app-user"];
-
 async function getResponseError(response, fallback) {
   try {
-    const data = await response.json();
+    const data = await readApiResponse(response);
     return data.error || fallback;
   } catch {
     return fallback;
   }
+}
+
+function humanizeRoleName(roleName) {
+  return String(roleName || "")
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function flattenGroups(groups, level = 0) {
@@ -44,6 +49,7 @@ function flattenGroups(groups, level = 0) {
 export default function UsersPage() {
   const { language, t } = useLanguage();
   const [users, setUsers] = useState([]);
+  const [roleOptions, setRoleOptions] = useState([]);
   const [groupOptions, setGroupOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -58,6 +64,12 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false);
   const [actionUserId, setActionUserId] = useState(null);
   const [formError, setFormError] = useState("");
+  const [resetPasswordUser, setResetPasswordUser] = useState(null);
+  const [resetPasswordForm, setResetPasswordForm] = useState({
+    password: "",
+    confirmPassword: "",
+    temporary: false,
+  });
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -69,8 +81,9 @@ export default function UsersPage() {
         throw new Error(await getResponseError(res, t("users.failedFetch")));
       }
 
-      const data = await res.json();
-      setUsers(Array.isArray(data) ? data : (data.users ?? []));
+      const data = await readApiResponse(res);
+      const rawUsers = Array.isArray(data) ? data : (data.users ?? []);
+      setUsers(rawUsers.map((user) => ({ ...user, enabled: user.enabled !== false })));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("users.failedFetch"));
     } finally {
@@ -82,10 +95,31 @@ export default function UsersPage() {
     try {
       const res = await fetch("/api/groups", { cache: "no-store" });
       if (!res.ok) return;
-      const data = await res.json();
+      const data = await readApiResponse(res);
       setGroupOptions(flattenGroups(Array.isArray(data) ? data : []));
     } catch {
       setGroupOptions([]);
+    }
+  }, []);
+
+  const fetchRoles = useCallback(async () => {
+    try {
+      const res = await fetch("/api/roles", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await readApiResponse(res);
+      const roles = Array.isArray(data) ? data : [];
+      setRoleOptions(
+        roles
+          .filter((role) => role?.name)
+          .map((role) => ({
+            name: role.name,
+            description: role.description || "",
+            composite: role.composite === true,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      );
+    } catch {
+      setRoleOptions([]);
     }
   }, []);
 
@@ -94,9 +128,10 @@ export default function UsersPage() {
     const timeoutId = window.setTimeout(() => {
       fetchUsers();
       fetchGroups();
+      fetchRoles();
     }, 0);
     return () => window.clearTimeout(timeoutId);
-  }, [fetchGroups, fetchUsers]);
+  }, [fetchGroups, fetchRoles, fetchUsers]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -109,7 +144,7 @@ export default function UsersPage() {
         );
       const matchesStatus =
         filter === "all" ||
-        (filter === "active" && user.enabled !== false) ||
+        (filter === "active" && user.enabled === true) ||
         (filter === "disabled" && user.enabled === false);
 
       return matchesSearch && matchesStatus;
@@ -155,7 +190,7 @@ export default function UsersPage() {
         body: JSON.stringify(form),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = await readApiResponse(res);
 
       if (!res.ok) {
         throw new Error(data.error || t("users.failedCreate"));
@@ -213,19 +248,7 @@ export default function UsersPage() {
     setError(null);
 
     try {
-      const res = await fetch(`/api/users/${user.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: user.firstName || "",
-          lastName: user.lastName || "",
-          username: user.username,
-          email: user.email,
-          roles: user.realmRoles ?? [],
-          groups: user.groups ?? [],
-          enabled: user.enabled === false,
-        }),
-      });
+      const res = await fetch(`/api/users/${user.id}/toggle-enabled`, { method: "PATCH" });
 
       if (!res.ok) {
         throw new Error(
@@ -281,6 +304,55 @@ export default function UsersPage() {
     setModal("edit");
   }
 
+  function openResetPassword(user) {
+    setResetPasswordUser(user);
+    setResetPasswordForm({ password: "", confirmPassword: "", temporary: false });
+    setFormError("");
+    setModal("reset-password");
+  }
+
+  async function handleResetPassword() {
+    if (!resetPasswordUser) return;
+
+    if (!resetPasswordForm.password) {
+      setFormError(t("users.passwordRequired"));
+      return;
+    }
+
+    if (resetPasswordForm.password !== resetPasswordForm.confirmPassword) {
+      setFormError(t("users.passwordMismatch"));
+      return;
+    }
+
+    setSaving(true);
+    setFormError("");
+
+    try {
+      const res = await fetch(`/api/users/${resetPasswordUser.id}/reset-password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password: resetPasswordForm.password,
+          temporary: resetPasswordForm.temporary,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(await getResponseError(res, t("users.passwordResetFailed")));
+      }
+
+      const data = await readApiResponse(res);
+      setSuccess(data.message || t("users.passwordResetSuccess"));
+      closeModal();
+    } catch (err) {
+      setFormError(
+        err instanceof Error ? err.message : t("users.passwordResetFailed"),
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function initials(u) {
     const f = u.firstName?.[0] || "";
     const l = u.lastName?.[0] || "";
@@ -289,7 +361,7 @@ export default function UsersPage() {
   }
 
   function statusBadge(u) {
-    if (u.enabled === false)
+    if (u.enabled !== true)
       return <span className="badge badge-danger">{t("common.disabled")}</span>;
     if (u.onboardingStatus === "EMAIL_VERIFICATION_REQUIRED")
       return <span className="badge badge-warning">{t("users.emailPending")}</span>;
@@ -472,10 +544,17 @@ export default function UsersPage() {
                           </button>
                           <button
                             className="btn btn-outline btn-sm"
+                            onClick={() => openResetPassword(user)}
+                            disabled={actionUserId === user.id}
+                          >
+                            {t("users.resetPassword")}
+                          </button>
+                          <button
+                            className="btn btn-outline btn-sm"
                             onClick={() => toggleStatus(user)}
                             disabled={actionUserId === user.id}
                           >
-                            {user.enabled === false ? t("common.enable") : t("common.disable")}
+                            {user.enabled === true ? t("common.disable") : t("common.enable")}
                           </button>
                           <button
                             className="btn btn-danger btn-sm"
@@ -529,7 +608,7 @@ export default function UsersPage() {
           }
         >
           {formError && <p className={styles.formError}>{formError}</p>}
-          <UserForm form={form} setForm={setForm} groupOptions={groupOptions} showPassword />
+          <UserForm form={form} setForm={setForm} roleOptions={roleOptions} groupOptions={groupOptions} showPassword />
         </Modal>
       )}
 
@@ -558,7 +637,85 @@ export default function UsersPage() {
           }
         >
           {formError && <p className={styles.formError}>{formError}</p>}
-          <UserForm form={form} setForm={setForm} groupOptions={groupOptions} />
+          <UserForm form={form} setForm={setForm} roleOptions={roleOptions} groupOptions={groupOptions} />
+        </Modal>
+      )}
+
+      {/* Reset Password Modal */}
+      {modal === "reset-password" && resetPasswordUser && (
+        <Modal
+          title={t("users.resetPasswordTitle", { username: resetPasswordUser.username })}
+          onClose={closeModal}
+          footer={
+            <>
+              <button
+                className="btn btn-outline"
+                onClick={closeModal}
+                disabled={saving}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleResetPassword}
+                disabled={saving}
+              >
+                {saving ? t("auth.resettingPassword") : t("users.resetPassword")}
+              </button>
+            </>
+          }
+        >
+          {formError && <p className={styles.formError}>{formError}</p>}
+          <div className="form-group">
+            <label className="form-label">{t("auth.newPassword")}</label>
+            <input
+              className="form-input"
+              name="newPassword"
+              type="password"
+              placeholder={t("users.newPasswordPlaceholder")}
+              value={resetPasswordForm.password}
+              required
+              onChange={(e) =>
+                setResetPasswordForm((f) => ({ ...f, password: e.target.value }))
+              }
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">{t("auth.confirmNewPassword")}</label>
+            <input
+              className="form-input"
+              name="confirmPassword"
+              type="password"
+              placeholder={t("users.confirmPasswordPlaceholder")}
+              value={resetPasswordForm.confirmPassword}
+              required
+              onChange={(e) =>
+                setResetPasswordForm((f) => ({
+                  ...f,
+                  confirmPassword: e.target.value,
+                }))
+              }
+            />
+          </div>
+          <div className="settings-row">
+            <div>
+              <div className="settings-row-label">{t("users.temporaryPassword")}</div>
+              <p className="form-hint">{t("users.temporaryPasswordHint")}</p>
+            </div>
+            <button
+              type="button"
+              className={`toggle ${resetPasswordForm.temporary ? "on" : ""}`}
+              role="switch"
+              aria-checked={resetPasswordForm.temporary}
+              aria-label={t("users.temporaryPassword")}
+              onClick={() =>
+                setResetPasswordForm((f) => ({
+                  ...f,
+                  temporary: !f.temporary,
+                }))
+              }
+            />
+          </div>
         </Modal>
       )}
     </AdminLayout>
@@ -566,8 +723,17 @@ export default function UsersPage() {
 }
 
 // Shared form component
-function UserForm({ form, setForm, groupOptions = [], showPassword = false }) {
+function UserForm({ form, setForm, roleOptions = [], groupOptions = [], showPassword = false }) {
   const { language, t } = useLanguage();
+  const visibleRoleOptions = useMemo(() => {
+    const byName = new Map(roleOptions.map((role) => [role.name, role]));
+    for (const roleName of form.roles || []) {
+      if (!byName.has(roleName)) {
+        byName.set(roleName, { name: roleName, description: "", composite: false });
+      }
+    }
+    return [...byName.values()];
+  }, [form.roles, roleOptions]);
 
   function toggleRole(role) {
     setForm((f) => ({
@@ -634,7 +800,7 @@ function UserForm({ form, setForm, groupOptions = [], showPassword = false }) {
           className="form-input"
           name="email"
           type="email"
-          placeholder="john.doe@challan.gov.in"
+          placeholder="john.doe@car-service.local"
           value={form.email}
           required
           onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
@@ -664,17 +830,25 @@ function UserForm({ form, setForm, groupOptions = [], showPassword = false }) {
       <div className="form-group">
         <label className="form-label">{t("users.assignRoles")}</label>
         <div className={styles.roleOptions}>
-          {ALL_ROLES.map((r) => (
-            <button
-              key={r}
-              type="button"
-              className={`badge ${form.roles.includes(r) ? "badge-blue" : "badge-gray"}`}
-              aria-pressed={form.roles.includes(r)}
-              onClick={() => toggleRole(r)}
-            >
-              {getRoleLabel(r, language)}
-            </button>
-          ))}
+          {visibleRoleOptions.length === 0 ? (
+            <span className="text-muted text-sm">No realm roles found</span>
+          ) : (
+            visibleRoleOptions.map((role) => {
+              const label = getRoleLabel(role.name, language);
+              return (
+                <button
+                  key={role.name}
+                  type="button"
+                  className={`badge ${form.roles.includes(role.name) ? "badge-blue" : "badge-gray"}`}
+                  aria-pressed={form.roles.includes(role.name)}
+                  onClick={() => toggleRole(role.name)}
+                  title={role.description || role.name}
+                >
+                  {label === role.name ? humanizeRoleName(role.name) : label}
+                </button>
+              );
+            })
+          )}
         </div>
       </div>
 

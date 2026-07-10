@@ -1,9 +1,7 @@
-import { NextResponse } from "next/server";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../lib/api-auth";
 import { keycloakAdminFetch } from "../../lib/keycloak";
 import { getKeycloakError } from "../../lib/keycloak-users";
-
-type AuthenticationSettingsBody = Record<string, unknown>;
 
 function readPolicyValue(
   policy: string | undefined,
@@ -19,7 +17,27 @@ function hasPolicy(policy: string | undefined, key: string) {
   return Boolean(policy?.includes(`${key}(`));
 }
 
-function buildPasswordPolicy(body: AuthenticationSettingsBody) {
+type AuthenticationSettingsInput = {
+  minLength?: number;
+  requireUppercase?: boolean;
+  requireLowercase?: boolean;
+  requireDigits?: boolean;
+  requireSpecialChars?: boolean;
+  passwordHistory?: number;
+  passwordExpiryDays?: number;
+  bruteForceProtected?: boolean;
+  failureFactor?: number;
+  waitIncrementSeconds?: number;
+  maxFailureWaitSeconds?: number;
+  permanentLockout?: boolean;
+  otpPolicyType?: string;
+  otpPolicyAlgorithm?: string;
+  otpPolicyDigits?: number;
+  otpPolicyLookAheadWindow?: number;
+  otpPolicyPeriod?: number;
+};
+
+function buildPasswordPolicy(body: AuthenticationSettingsInput) {
   const parts = [];
   if (body.minLength) parts.push(`length(${Number(body.minLength)})`);
   if (body.requireUppercase) parts.push("upperCase(1)");
@@ -34,6 +52,18 @@ function buildPasswordPolicy(body: AuthenticationSettingsBody) {
     );
   return parts.join(" and ");
 }
+
+const numericFields: (keyof AuthenticationSettingsInput)[] = [
+  "minLength",
+  "passwordHistory",
+  "passwordExpiryDays",
+  "failureFactor",
+  "waitIncrementSeconds",
+  "maxFailureWaitSeconds",
+  "otpPolicyDigits",
+  "otpPolicyLookAheadWindow",
+  "otpPolicyPeriod",
+];
 
 export async function GET() {
   const unauthorized = await requireRealmAdmin();
@@ -50,7 +80,7 @@ export async function GET() {
 
     return NextResponse.json({
       passwordPolicy: policy,
-      minLength: readPolicyValue(policy, "length", 12),
+      minLength: readPolicyValue(policy, "length", 0),
       requireUppercase: hasPolicy(policy, "upperCase"),
       requireLowercase: hasPolicy(policy, "lowerCase"),
       requireDigits: hasPolicy(policy, "digits"),
@@ -75,7 +105,10 @@ export async function GET() {
   } catch (error: unknown) {
     return NextResponse.json(
       {
-        error: await getKeycloakError(error, "Failed to load authentication settings"),
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to load authentication settings",
       },
       { status: 500 },
     );
@@ -87,7 +120,17 @@ export async function PUT(req: Request) {
   if (unauthorized) return unauthorized;
 
   try {
-    const body = await req.json();
+    const body = (await req.json()) as AuthenticationSettingsInput;
+    if (
+      numericFields.some(
+        (field) => body[field] !== undefined && !Number.isFinite(Number(body[field])),
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Authentication settings must contain valid numeric values" },
+        { status: 400 },
+      );
+    }
     const payload = {
       passwordPolicy: buildPasswordPolicy(body),
       bruteForceProtected: Boolean(body.bruteForceProtected),
@@ -114,7 +157,10 @@ export async function PUT(req: Request) {
   } catch (error: unknown) {
     return NextResponse.json(
       {
-        error: await getKeycloakError(error, "Failed to save authentication settings"),
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to save authentication settings",
       },
       { status: 500 },
     );

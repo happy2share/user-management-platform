@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../../lib/api-auth";
 import { keycloakAdminFetch } from "../../../lib/keycloak";
-import { normalizeObjectTextFields } from "../../../lib/english-normalizer";
+import { normalizeObjectTextFields } from "../../../i18n/english-normalizer";
 import {
   getKeycloakError,
   syncUserGroups,
@@ -11,6 +11,36 @@ import {
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
+
+export async function GET(_request: Request, context: RouteContext) {
+  const unauthorized = await requireRealmAdmin();
+  if (unauthorized) return unauthorized;
+
+  try {
+    const { id } = await context.params;
+
+    if (!id) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+
+    const response = await keycloakAdminFetch(`/users/${encodeURIComponent(id)}`);
+
+    if (!response.ok) {
+      const error = await getKeycloakError(response, "Failed to fetch user");
+      return NextResponse.json({ error }, { status: response.status });
+    }
+
+    return NextResponse.json(await response.json());
+  } catch (error: unknown) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to fetch user",
+      },
+      { status: 500 },
+    );
+  }
+}
 
 export async function PUT(request: Request, context: RouteContext) {
   const unauthorized = await requireRealmAdmin();
@@ -27,9 +57,21 @@ export async function PUT(request: Request, context: RouteContext) {
     ]);
     const { firstName, lastName, username, email, enabled, roles, groups } = body;
 
-    if (!id || !username?.trim()) {
+    if (!id) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+
+    const currentRes = await keycloakAdminFetch(`/users/${encodeURIComponent(id)}`);
+    if (!currentRes.ok) {
+      const error = await getKeycloakError(currentRes, "Failed to fetch user");
+      return NextResponse.json({ error }, { status: currentRes.status });
+    }
+    const currentUser = await currentRes.json();
+
+    const nextUsername = username?.trim() || currentUser.username;
+    if (!nextUsername) {
       return NextResponse.json(
-        { error: "User ID and username are required" },
+        { error: "Username is required" },
         { status: 400 },
       );
     }
@@ -48,25 +90,26 @@ export async function PUT(request: Request, context: RouteContext) {
       );
     }
 
+    const updatePayload = {
+      ...currentUser,
+      username: nextUsername,
+      email: email !== undefined ? email?.trim() : currentUser.email,
+      firstName: firstName !== undefined ? firstName?.trim() : currentUser.firstName,
+      lastName: lastName !== undefined ? lastName?.trim() : currentUser.lastName,
+      enabled: typeof enabled === "boolean" ? enabled : currentUser.enabled,
+    };
+
     const updateRes = await keycloakAdminFetch(
       `/users/${encodeURIComponent(id)}`,
       {
         method: "PUT",
-        body: JSON.stringify({
-          username: username.trim(),
-          email: email?.trim(),
-          firstName: firstName?.trim(),
-          lastName: lastName?.trim(),
-          enabled,
-        }),
+        body: JSON.stringify(updatePayload),
       },
     );
 
     if (!updateRes.ok) {
-      return NextResponse.json(
-        { error: await getKeycloakError(updateRes, "Failed to update user") },
-        { status: updateRes.status },
-      );
+      const error = await getKeycloakError(updateRes, "Failed to update user");
+      return NextResponse.json({ error }, { status: updateRes.status });
     }
 
     if (roles !== undefined) {
@@ -82,7 +125,7 @@ export async function PUT(request: Request, context: RouteContext) {
     return NextResponse.json(
       {
         error:
-          await getKeycloakError(error, "Failed to update user"),
+          error instanceof Error ? error.message : "Failed to update user",
       },
       { status: 500 },
     );
@@ -109,10 +152,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
     );
 
     if (!response.ok) {
-      return NextResponse.json(
-        { error: await getKeycloakError(response, "Failed to delete user") },
-        { status: response.status },
-      );
+      const error = await getKeycloakError(response, "Failed to delete user");
+      return NextResponse.json({ error }, { status: response.status });
     }
 
     return NextResponse.json({ message: "User deleted successfully" });
@@ -120,7 +161,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return NextResponse.json(
       {
         error:
-          await getKeycloakError(error, "Failed to delete user"),
+          error instanceof Error ? error.message : "Failed to delete user",
       },
       { status: 500 },
     );

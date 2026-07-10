@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getRoleLabel } from "../i18n/role-labels";
 import { completeLogout } from "../lib/logout";
-import { isAdminRole } from "../lib/role-target";
+import { roleTarget } from "../lib/role-target";
 
 export default function UserPortalPage() {
   const { data: session, status } = useSession();
@@ -20,8 +20,15 @@ export default function UserPortalPage() {
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/");
-    if (status === "authenticated" && isAdminRole(roles)) router.replace("/dashboard");
-  }, [router, roles, status]);
+    if (status === "authenticated") {
+      if (session?.needsUsername) {
+        router.replace("/choose-username");
+        return;
+      }
+      const target = roleTarget(roles);
+      if (target !== "/user-portal") router.replace(target);
+    }
+  }, [router, roles, session?.needsUsername, status]);
 
   if (status === "loading") {
     return <main style={{ padding: 32 }}>{t("common.loading")}</main>;

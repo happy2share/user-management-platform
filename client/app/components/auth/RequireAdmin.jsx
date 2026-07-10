@@ -22,10 +22,12 @@ export default function RequireAdmin({ children }) {
   }
 
   useEffect(() => {
-    if (status === "authenticated" && !isAdminRole(roles)) {
+    if (status === "authenticated" && session?.needsUsername) {
+      router.replace("/choose-username");
+    } else if (status === "authenticated" && !isAdminRole(roles)) {
       router.replace("/user-portal");
     }
-  }, [router, roles, status]);
+  }, [router, roles, session?.needsUsername, status]);
 
 
   if (status === "loading") {

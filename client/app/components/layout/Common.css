@@ -115,7 +115,8 @@
   justify-content: center;
   gap: 6px;
 
-  padding: 8px 14px;
+  min-height: var(--control-h);
+  padding: 0 14px;
 
   border-radius: var(--radius);
 
@@ -123,7 +124,7 @@
 
   background: white;
 
-  font-size: 13px;
+  font-size: var(--control-font);
   font-weight: 500;
 
   cursor: pointer;
@@ -164,7 +165,8 @@
 }
 
 .btn-sm {
-  padding: 5px 10px;
+  min-height: 30px;
+  padding: 0 10px;
   font-size: 12px;
 }
 
@@ -220,12 +222,14 @@
 
 .form-input {
   width: 100%;
-  padding: 8px 12px;
+  min-height: var(--control-h);
+  padding: 7px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 13.5px;
+  font-size: var(--control-font);
   outline: none;
   background: white;
+  color: var(--text);
 }
 
 .form-input:focus {
@@ -247,6 +251,51 @@
 
 .action-row .spacer {
   flex: 1;
+}
+
+.page-header-left {
+  min-width: 0;
+}
+
+.search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: min(300px, 100%);
+}
+
+.action-row .search-input {
+  width: 100%;
+  height: var(--control-h);
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #ffffff;
+  color: var(--text);
+  outline: none;
+  font-size: var(--control-font);
+}
+
+.action-row .search-input:focus {
+  border-color: var(--blue);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-sm {
+  font-size: 12px;
+}
+
+.empty-state {
+  padding: 34px 18px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.empty-state p {
+  margin: 0;
 }
 
 .toggle {
@@ -315,6 +364,17 @@
   .grid-3,
   .form-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .action-row {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .search-wrap {
+    width: 100%;
   }
 }
 

@@ -1,19 +1,33 @@
 export const runtime = "nodejs";
-import { NextResponse } from "next/server";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { verifyEmailOtp } from "../../../../lib/app-email";
-import { getKeycloakError } from "../../../../lib/keycloak-users";
-import { normalizeObjectTextFields } from "../../../../lib/english-normalizer";
+import { normalizeObjectTextFields } from "../../../../i18n/english-normalizer";
+import {
+  clearRateLimitIdentifier,
+  rateLimitIdentifier,
+} from "../../../../lib/redis_utility";
 
 export async function POST(req: Request) {
   try {
     const rawBody = await req.json();
     const body = normalizeObjectTextFields(rawBody, ["username"]);
+    const identifier = String(
+      body.username || rawBody.email || rawBody.identifier || "",
+    ).trim().toLowerCase();
+    if (await rateLimitIdentifier("email-verify", identifier || "missing", 5, 300)) {
+      return NextResponse.json(
+        { verified: false, error: "Too many verification attempts. Try again later." },
+        { status: 429 },
+      );
+    }
     const result = await verifyEmailOtp({
       username: body.username,
       email: rawBody.email,
       identifier: rawBody.identifier,
       otp: rawBody.otp || rawBody.code,
+      token: rawBody.token,
     });
+    await clearRateLimitIdentifier("email-verify", identifier);
 
     return NextResponse.json({
       verified: true,
@@ -26,7 +40,8 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         verified: false,
-        error: await getKeycloakError(error, "Failed to verify email OTP"),
+        error:
+          error instanceof Error ? error.message : "Failed to verify email OTP",
       },
       { status: 400 },
     );

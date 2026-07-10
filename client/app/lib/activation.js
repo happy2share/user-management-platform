@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { keycloakAdminFetch } from "./keycloak";
-import { getKeycloakError } from "./keycloak-users";
+import { getKeycloakError } from "./keycloak-error";
 
 export const ONBOARDING_REQUIRED_ACTIONS = [
   "TERMS_AND_CONDITIONS",
@@ -12,19 +12,15 @@ export const ONBOARDING_REQUIRED_ACTIONS = [
 export const ACTIVATION_ATTRIBUTE_DEFAULTS = {
   onboardingStatus: ["PENDING"],
   termsAccepted: ["false"],
-  mfaConfigured: ["false"],
+  appMfaConfigured: ["false"],
 };
 
 function hashValue(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
-function getRequestOrigin(req) {
-  return (
-    req.headers.get("origin") ||
-    process.env.NEXTAUTH_URL ||
-    "http://localhost:3000"
-  ).replace(/\/$/, "");
+function getRequestOrigin() {
+  return (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/$/, "");
 }
 
 function tokenExpiryIso(hours = 24) {
@@ -134,7 +130,7 @@ export async function resolveActivationToken(token) {
     throw new Error("Activation token is invalid");
   }
 
-  if (expiresAt && new Date(expiresAt).getTime() < Date.now()) {
+  if (!expiresAt || !Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) < Date.now()) {
     throw new Error("Activation token has expired");
   }
 
@@ -202,8 +198,7 @@ export function getActivationStatus(user, hasOtp = false) {
   const emailDone = user.emailVerified === true && !requiredActions.includes("VERIFY_EMAIL");
   const mfaDone =
     hasOtp ||
-    attrs.mfaConfigured?.[0] === "true" ||
-    !requiredActions.includes("CONFIGURE_TOTP");
+    attrs.appMfaConfigured?.[0] === "true";
 
   let nextStep = "complete";
   if (!termsDone) nextStep = "terms";
@@ -270,7 +265,7 @@ export async function verifyEmailToken(emailToken) {
     throw new Error("Email verification token is invalid");
   }
 
-  if (expiresAt && new Date(expiresAt).getTime() < Date.now()) {
+  if (!expiresAt || !Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) < Date.now()) {
     throw new Error("Email verification token has expired");
   }
 

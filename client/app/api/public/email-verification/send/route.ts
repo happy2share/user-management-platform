@@ -1,44 +1,56 @@
 export const runtime = "nodejs";
-import { NextResponse } from "next/server";
-import { findUserByUsernameOrEmail, getKeycloakError } from "../../../../lib/keycloak-users";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
+import { logError } from "@/app/lib/file-logger.mjs";
+import { findUserByUsernameOrEmail } from "../../../../lib/keycloak-users";
 import { sendEmailVerification } from "../../../../lib/app-email";
-import { normalizeObjectTextFields } from "../../../../lib/english-normalizer";
+import { normalizeObjectTextFields } from "../../../../i18n/english-normalizer";
+import { rateLimitIdentifier } from "../../../../lib/redis_utility";
 
 export async function POST(req: Request) {
   try {
     const rawBody = await req.json();
     const body = normalizeObjectTextFields(rawBody, ["username"]);
-    const identifier = (body.username || rawBody.email || rawBody.identifier || "").trim();
+    const identifier = (
+      body.username ||
+      rawBody.email ||
+      rawBody.identifier ||
+      ""
+    ).trim();
 
     if (!identifier) {
-      return NextResponse.json({ error: "Username or email is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Username or email is required" },
+        { status: 400 },
+      );
     }
 
     const user = await findUserByUsernameOrEmail(identifier);
 
     if (!user?.id) {
-      return NextResponse.json({ message: "If the account exists, an email OTP will be sent." });
+      return NextResponse.json({
+        message: "If the account exists, an email OTP will be sent.",
+      });
     }
 
-    if (user.emailVerified === true) {
-      return NextResponse.json({ message: "Email is already verified.", emailVerified: true });
+    if (
+      user.emailVerified !== true &&
+      !(await rateLimitIdentifier("email-send", user.id, 1, 60))
+    ) {
+      await sendEmailVerification(user);
     }
-
-    const verification = await sendEmailVerification(user);
 
     return NextResponse.json({
-      message: verification.emailSent
-        ? "Email verification OTP sent. Please check your inbox."
-        : "App SMTP is not configured. Use the local OTP shown below for testing.",
-      emailVerificationSent: verification.emailSent,
-      verificationPageLink: verification.verificationPageLink,
-      verificationLink: verification.verificationPageLink,
-      localOtpCode: verification.localOtpCode,
-      warning: verification.warning,
+      message: "If the account exists, an email OTP will be sent.",
     });
   } catch (error: unknown) {
+    void logError("Failed to send email verification OTP", {
+      endpoint: "/api/public/email-verification/send",
+      method: "POST",
+      operation: "emailVerification.send",
+      error,
+    });
     return NextResponse.json(
-      { error: await getKeycloakError(error, "Failed to send email verification OTP") },
+      { error: "Failed to send email verification OTP" },
       { status: 500 },
     );
   }

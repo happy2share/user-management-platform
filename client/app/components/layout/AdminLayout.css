@@ -6,6 +6,8 @@
   --blue: #3b82f6;
   --blue-dark: #1d4ed8;
   --blue-light: #eff6ff;
+  --primary: var(--blue);
+  --primary-dark: var(--blue-dark);
 
   --sidebar-bg: #1e293b;
   --sidebar-text: #94a3b8;
@@ -24,6 +26,11 @@
   --danger: #ef4444;
 
   --radius: 8px;
+  --control-h: 36px;
+  --control-font: 13px;
+  --table-head-bg: #f8fafc;
+  --table-row-hover: #f8fafc;
+  --shadow-lg: 0 18px 40px rgb(15 23 42 / 0.14);
 }
 
 * {
@@ -53,6 +60,7 @@
 .page {
   flex: 1;
   padding: 24px;
+  font-size: 13px;
 }
 
 .page-header {
@@ -61,6 +69,7 @@
 
 .page-title {
   font-size: 22px;
+  line-height: 1.15;
   font-weight: 700;
   color: var(--text);
 }

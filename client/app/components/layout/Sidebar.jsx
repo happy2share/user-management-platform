@@ -11,14 +11,12 @@ import {
   Globe,
   Boxes,
   Lock,
+  ScrollText,
 } from "lucide-react";
 import { useLanguage } from "../../i18n/LanguageProvider";
 
-export default function Sidebar({ collapsed }) {
-  const pathname = usePathname();
-  const { t } = useLanguage();
-
-  const menu = [
+export function adminMenu(t) {
+  return [
     {
       title: t("nav.portal"),
       items: [
@@ -35,9 +33,17 @@ export default function Sidebar({ collapsed }) {
         { label: t("nav.roles"), href: "/roles", icon: Shield },
         { label: t("nav.groups"), href: "/groups", icon: FolderTree },
         { label: t("nav.sessions"), href: "/sessions", icon: Activity },
+        { label: t("nav.auditLogs"), href: "/audit-logs", icon: ScrollText },
       ],
     },
   ];
+}
+
+export default function Sidebar({ collapsed, menu }) {
+  const pathname = usePathname();
+  const { t } = useLanguage();
+
+  const sections = menu || adminMenu(t);
 
   return (
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
@@ -47,7 +53,7 @@ export default function Sidebar({ collapsed }) {
       </div>
 
       <div className="sidebar-nav">
-        {menu.map((section) => (
+        {sections.map((section) => (
           <div key={section.title}>
             {!collapsed && <div className="nav-section">{section.title}</div>}
 
