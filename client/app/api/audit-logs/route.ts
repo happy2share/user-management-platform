@@ -34,6 +34,24 @@ function targetUserId(resourcePath?: string) {
   return resourcePath?.match(/(?:^|\/)users\/([^/]+)/)?.[1];
 }
 
+function eventMessage({
+  action,
+  actor,
+  account,
+  resource,
+  status,
+}: {
+  action: string;
+  actor: string;
+  account: string;
+  resource: string;
+  status: string;
+}) {
+  const target = account && account !== "-" ? ` for account ${account}` : "";
+  const place = resource && resource !== "-" ? ` on ${resource}` : "";
+  return `${actor} ${status.toLowerCase()} ${action}${target}${place}`;
+}
+
 async function usernameMap(userIds: string[]) {
   const uniqueIds = [...new Set(userIds.filter(Boolean))];
   const entries = await Promise.all(
@@ -96,35 +114,49 @@ export async function GET(request: Request) {
               event.details?.grant_type === "client_credentials"
             ),
         )
-        .map((event, index) => ({
-          id: `user-${event.id || `${event.time}-${event.type}-${event.userId || ""}-${index}`}`,
-          time: event.time,
-          category: "Authentication",
-          action: event.type || "UNKNOWN",
-          status: event.error ? "Failed" : "Success",
-          actor: event.details?.username || nameOf(event.userId),
-          account: event.details?.username || nameOf(event.userId),
-          client: event.clientId || event.details?.client_id || "-",
-          resource: event.realmId || "-",
-          ipAddress: event.ipAddress || "-",
-          error: event.error || "",
-        })),
+        .map((event, index) => {
+          const action = event.type || "UNKNOWN";
+          const status = event.error ? "Failed" : "Success";
+          const actor = event.details?.username || nameOf(event.userId);
+          const account = event.details?.username || nameOf(event.userId);
+          const resource = event.realmId || "-";
+          return {
+            id: `user-${event.id || `${event.time}-${event.type}-${event.userId || ""}-${index}`}`,
+            time: event.time,
+            category: "Authentication",
+            action,
+            status,
+            message: eventMessage({ action, actor, account, resource, status }),
+            actor,
+            account,
+            client: event.clientId || event.details?.client_id || "-",
+            resource,
+            ipAddress: event.ipAddress || "-",
+            error: event.error || "",
+          };
+        }),
       ...adminEvents.map((event, index) => {
         const accountId = targetUserId(event.resourcePath);
+        const action = event.resourcePath?.includes("reset-password")
+          ? "RESET USER PASSWORD"
+          : event.resourcePath?.includes("credentials")
+            ? "UPDATE USER CREDENTIALS"
+            : [event.operationType, event.resourceType].filter(Boolean).join(" ");
+        const status = event.error ? "Failed" : "Success";
+        const actor = nameOf(event.authDetails?.userId);
+        const account = nameOf(accountId);
+        const resource = event.resourcePath || event.realmId || "-";
         return {
           id: `admin-${event.id || `${event.time}-${event.operationType}-${event.resourcePath || ""}-${index}`}`,
           time: event.time,
           category: "Administration",
-          action: event.resourcePath?.includes("reset-password")
-            ? "RESET USER PASSWORD"
-            : event.resourcePath?.includes("credentials")
-              ? "UPDATE USER CREDENTIALS"
-              : [event.operationType, event.resourceType].filter(Boolean).join(" "),
-          status: event.error ? "Failed" : "Success",
-          actor: nameOf(event.authDetails?.userId),
-          account: nameOf(accountId),
+          action,
+          status,
+          message: eventMessage({ action, actor, account, resource, status }),
+          actor,
+          account,
           client: event.authDetails?.clientId || "-",
-          resource: event.resourcePath || event.realmId || "-",
+          resource,
           ipAddress: event.authDetails?.ipAddress || "-",
           error: event.error || "",
         };

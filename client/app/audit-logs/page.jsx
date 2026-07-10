@@ -54,6 +54,7 @@ export default function AuditLogsPage() {
                 <th>{t("auditLogs.time")}</th>
                 <th>{t("auditLogs.category")}</th>
                 <th>{t("auditLogs.action")}</th>
+                <th>{t("auditLogs.message")}</th>
                 <th>{t("common.status")}</th>
                 <th>{t("auditLogs.actor")}</th>
                 <th>{t("auditLogs.account")}</th>
@@ -64,7 +65,7 @@ export default function AuditLogsPage() {
             <tbody>
               {logs.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     <div className="empty-state">
                       <p>{error ? t("auditLogs.enableHint") : t("auditLogs.noLogs")}</p>
                     </div>
@@ -83,6 +84,7 @@ export default function AuditLogsPage() {
                         <div className="text-muted text-sm">{log.error}</div>
                       )}
                     </td>
+                    <td>{log.message}</td>
                     <td>
                       <span
                         className={`badge ${

@@ -41,7 +41,7 @@ export async function logRequestEntry(
     | SessionInfo
     | null;
 
-  await logInfo("req.body", {
+  await logInfo(`${request.method} ${url.pathname} requested from admin UI`, {
     userInfo: {
       userId: session?.userId,
       name: session?.user?.name,
