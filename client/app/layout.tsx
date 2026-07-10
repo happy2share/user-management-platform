@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SessionProviderWrapper from "./components/SessionProviderWrapper";
-import EnglishInputGuard from "./components/auth/EnglishInputGuard";
+import EnglishInputGuard from "./i18n/EnglishInputGuard";
 
 export const metadata: Metadata = {
   title: "IAM Portal",

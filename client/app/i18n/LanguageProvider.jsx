@@ -2,7 +2,12 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { DEFAULT_LANGUAGE, dictionaries, LANGUAGE_OPTIONS } from "./dictionaries";
+import { readApiResponse } from "../lib/api-response";
+import {
+  DEFAULT_LANGUAGE,
+  dictionaries,
+  LANGUAGE_OPTIONS,
+} from "./dictionaries";
 
 const STORAGE_KEY = "iam_portal_language";
 
@@ -36,7 +41,7 @@ export function LanguageProvider({ children }) {
     async function syncLocaleFromKeycloak() {
       try {
         const response = await fetch("/api/me/locale", { cache: "no-store" });
-        const data = await response.json().catch(() => ({}));
+        const data = await readApiResponse(response);
 
         if (cancelled || !response.ok) return;
 
@@ -91,9 +96,11 @@ export function LanguageProvider({ children }) {
 
       if (typeof template !== "string") return template;
 
-      return template.replace(/\{(\w+)\}/g, (_, key) => (
-        params[key] === undefined || params[key] === null ? "" : String(params[key])
-      ));
+      return template.replace(/\{(\w+)\}/g, (_, key) =>
+        params[key] === undefined || params[key] === null
+          ? ""
+          : String(params[key]),
+      );
     }
 
     return {

@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../lib/api-auth";
 import { keycloakAdminFetch } from "../../lib/keycloak";
-import { getKeycloakError } from "../../lib/keycloak-users";
-import { normalizeObjectTextFields } from "../../lib/english-normalizer";
+import { normalizeObjectTextFields } from "../../i18n/english-normalizer";
 
 export async function GET() {
   const unauthorized = await requireRealmAdmin();
@@ -13,7 +12,7 @@ export async function GET() {
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: await getKeycloakError(res, "Failed to fetch realm") },
+        { error: await res.text() },
         { status: res.status },
       );
     }
@@ -28,7 +27,6 @@ export async function GET() {
       registrationAllowed: realm.registrationAllowed,
       loginWithEmailAllowed: realm.loginWithEmailAllowed,
       duplicateEmailsAllowed: realm.duplicateEmailsAllowed,
-      editUsernameAllowed: realm.editUsernameAllowed,
       resetPasswordAllowed: realm.resetPasswordAllowed,
       rememberMe: realm.rememberMe,
       verifyEmail: realm.verifyEmail,
@@ -36,7 +34,7 @@ export async function GET() {
     });
   } catch (err: unknown) {
     return NextResponse.json(
-      { error: await getKeycloakError(err, "Failed to fetch realm") },
+      { error: err instanceof Error ? err.message : "Failed to fetch realm" },
       { status: 500 },
     );
   }
@@ -54,10 +52,10 @@ export async function PUT(req: Request) {
       body: JSON.stringify({
         displayName: body.displayName,
         enabled: Boolean(body.enabled),
+        sslRequired: body.sslRequired || "external",
         registrationAllowed: Boolean(body.registrationAllowed),
         loginWithEmailAllowed: Boolean(body.loginWithEmailAllowed),
         duplicateEmailsAllowed: Boolean(body.duplicateEmailsAllowed),
-        editUsernameAllowed: Boolean(body.editUsernameAllowed),
         resetPasswordAllowed: Boolean(body.resetPasswordAllowed),
         rememberMe: Boolean(body.rememberMe),
         verifyEmail: Boolean(body.verifyEmail),
@@ -67,7 +65,7 @@ export async function PUT(req: Request) {
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: await getKeycloakError(res, "Failed to update realm") },
+        { error: await res.text() },
         { status: res.status },
       );
     }
@@ -75,7 +73,7 @@ export async function PUT(req: Request) {
     return NextResponse.json({ message: "Realm updated successfully" });
   } catch (err: unknown) {
     return NextResponse.json(
-      { error: await getKeycloakError(err, "Failed to update realm") },
+      { error: err instanceof Error ? err.message : "Failed to update realm" },
       { status: 500 },
     );
   }

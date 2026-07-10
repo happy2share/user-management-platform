@@ -1,0 +1,461 @@
+{
+  "realm": "Car_ServiceCenter",
+  "displayName": "Car Service Center",
+  "enabled": true,
+  "eventsEnabled": true,
+  "enabledEventTypes": [
+    "LOGIN",
+    "LOGIN_ERROR",
+    "REGISTER",
+    "REGISTER_ERROR",
+    "LOGOUT",
+    "LOGOUT_ERROR",
+    "CODE_TO_TOKEN",
+    "CODE_TO_TOKEN_ERROR",
+    "CLIENT_LOGIN",
+    "CLIENT_LOGIN_ERROR",
+    "UPDATE_PASSWORD",
+    "UPDATE_PASSWORD_ERROR",
+    "RESET_PASSWORD",
+    "RESET_PASSWORD_ERROR",
+    "SEND_RESET_PASSWORD",
+    "SEND_RESET_PASSWORD_ERROR"
+  ],
+  "eventsExpiration": 2592000,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "loginWithEmailAllowed": true,
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "verifyEmail": false,
+  "rememberMe": true,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "minimumQuickLoginWaitSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "attributes": {
+    "userProfileEnabled": "true",
+    "frontendUrl": ""
+  },
+  "roles": {
+    "realm": [
+      {
+        "name": "realm-admin",
+        "description": "Can access the IAM admin portal"
+      },
+      {
+        "name": "app-user",
+        "description": "Default portal role for self-registered users"
+      },
+      {
+        "name": "owner",
+        "description": "Full service center ownership access",
+        "composite": true,
+        "composites": {
+          "realm": ["service-manager", "realm-admin"]
+        }
+      },
+      {
+        "name": "service-manager",
+        "description": "Manages workshop operations and staff",
+        "composite": true,
+        "composites": {
+          "realm": ["senior-technician"]
+        }
+      },
+      {
+        "name": "senior-technician",
+        "description": "Leads technical diagnostics and reviews work",
+        "composite": true,
+        "composites": {
+          "realm": ["technician"]
+        }
+      },
+      {
+        "name": "technician",
+        "description": "Performs and updates service tasks",
+        "composite": true,
+        "composites": {
+          "realm": ["helper-apprentice"]
+        }
+      },
+      {
+        "name": "helper-apprentice",
+        "description": "Limited apprentice workshop access"
+      }
+    ]
+  },
+  "groups": [
+    {
+      "name": "Service Center Staff",
+      "path": "/Service Center Staff",
+      "attributes": {
+        "description": ["Default staff group for this IAM Platform realm"]
+      },
+      "realmRoles": ["app-user"],
+      "subGroups": [
+        {
+          "name": "Owners",
+          "path": "/Service Center Staff/Owners",
+          "realmRoles": ["owner"]
+        },
+        {
+          "name": "Service Managers",
+          "path": "/Service Center Staff/Service Managers",
+          "realmRoles": ["service-manager"]
+        },
+        {
+          "name": "Senior Technicians",
+          "path": "/Service Center Staff/Senior Technicians",
+          "realmRoles": ["senior-technician"]
+        },
+        {
+          "name": "Technicians",
+          "path": "/Service Center Staff/Technicians",
+          "realmRoles": ["technician"]
+        },
+        {
+          "name": "Helper Apprentices",
+          "path": "/Service Center Staff/Helper Apprentices",
+          "realmRoles": ["helper-apprentice"]
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "iam-frontend",
+      "name": "IAM Frontend",
+      "description": "Next.js login and app session client",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "frontchannelLogout": true,
+      "secret": "iam-frontend-client-secret",
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:3000/*",
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    },
+    {
+      "clientId": "iam-admin-api",
+      "name": "IAM Admin API",
+      "description": "Confidential service client used by Next.js API routes for Keycloak Admin REST calls",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "secret": "iam-admin-api-client-secret",
+      "redirectUris": [],
+      "webOrigins": [],
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    },
+    {
+      "clientId": "iam-password-check",
+      "name": "IAM Password Check",
+      "description": "Confidential direct-grant client for password verification during onboarding and app-managed MFA",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "secret": "iam-password-check-client-secret",
+      "redirectUris": [],
+      "webOrigins": [],
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "false",
+        "oidc.ciba.grant.enabled": "false"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-iam-admin-api",
+      "enabled": true,
+      "serviceAccountClientId": "iam-admin-api",
+      "clientRoles": {
+        "realm-management": [
+          "realm-admin",
+          "view-realm",
+          "manage-realm",
+          "view-users",
+          "query-users",
+          "manage-users",
+          "view-clients",
+          "manage-clients",
+          "view-authorization",
+          "manage-authorization"
+        ]
+      }
+    }
+  ],
+  "userProfile": {
+    "attributes": [
+      {
+        "name": "username",
+        "displayName": "username",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "firstName",
+        "displayName": "firstName",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "lastName",
+        "displayName": "lastName",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "email",
+        "displayName": "email",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "onboardingStatus",
+        "displayName": "onboardingStatus",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "emailVerificationStatus",
+        "displayName": "emailVerificationStatus",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "emailVerificationOtpHash",
+        "displayName": "emailVerificationOtpHash",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "emailVerificationLinkHash",
+        "displayName": "emailVerificationLinkHash",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "emailVerificationOtpExpiresAt",
+        "displayName": "emailVerificationOtpExpiresAt",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "appMfaConfigured",
+        "displayName": "appMfaConfigured",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "appMfaTempSecretEncrypted",
+        "displayName": "appMfaTempSecretEncrypted",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "appMfaTempSecretCreatedAt",
+        "displayName": "appMfaTempSecretCreatedAt",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "appMfaSecretEncrypted",
+        "displayName": "appMfaSecretEncrypted",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "appMfaConfiguredAt",
+        "displayName": "appMfaConfiguredAt",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "mfaConfigured",
+        "displayName": "mfaConfigured",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "emailVerificationHash",
+        "displayName": "emailVerificationHash",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "emailVerificationExpiresAt",
+        "displayName": "emailVerificationExpiresAt",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "termsAcceptedAt",
+        "displayName": "termsAcceptedAt",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "passwordUpdatedAt",
+        "displayName": "passwordUpdatedAt",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "preferredLocale",
+        "displayName": "preferredLocale",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "identityProvider",
+        "displayName": "identityProvider",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      },
+      {
+        "name": "ssoUsernameRequired",
+        "displayName": "ssoUsernameRequired",
+        "permissions": {
+          "view": ["admin", "user"],
+          "edit": ["admin", "user"]
+        },
+        "multivalued": false
+      }
+    ]
+  }
+}

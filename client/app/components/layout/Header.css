@@ -92,7 +92,7 @@
 .search-input {
   width: 240px;
 
-  height: 38px;
+  height: var(--control-h);
 
   padding-left: 34px;
   padding-right: 12px;
@@ -103,6 +103,8 @@
   background: white;
 
   outline: none;
+  color: var(--text);
+  font-size: var(--control-font);
 }
 
 .search-input:focus {

@@ -1,33 +1,29 @@
-import { NextResponse } from "next/server";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../../../lib/api-auth";
-import { keycloakAdminFetch } from "../../../../lib/keycloak";
-import { getKeycloakError } from "../../../../lib/keycloak-users";
+import { keycloakAdminFetchAll } from "../../../../lib/keycloak";
 
 type RouteContext = { params: Promise<{ id: string }> };
-type KeycloakUser = {
+
+type KeycloakGroupChild = {
+  id: string;
+};
+
+type KeycloakMember = {
   id?: string;
+  username?: string;
+  email?: string;
 };
 
 async function readMembers(groupId: string) {
-  const res = await keycloakAdminFetch(
-    `/groups/${encodeURIComponent(groupId)}/members?first=0&max=1000&briefRepresentation=false`,
-  );
-
-  if (!res.ok) {
-    throw new Error(await getKeycloakError(res, "Failed to load group members"));
-  }
-  return res.json();
+  return keycloakAdminFetchAll(
+    `/groups/${encodeURIComponent(groupId)}/members?briefRepresentation=false`,
+  ) as Promise<KeycloakMember[]>;
 }
 
 async function readChildren(groupId: string) {
-  const res = await keycloakAdminFetch(
-    `/groups/${encodeURIComponent(groupId)}/children?briefRepresentation=false&first=0&max=1000`,
-  );
-
-  if (!res.ok) {
-    throw new Error(await getKeycloakError(res, "Failed to load child groups"));
-  }
-  return res.json();
+  return keycloakAdminFetchAll(
+    `/groups/${encodeURIComponent(groupId)}/children?briefRepresentation=false`,
+  ) as Promise<KeycloakGroupChild[]>;
 }
 
 async function collectMembers(groupId: string, visited = new Set<string>()) {
@@ -40,11 +36,11 @@ async function collectMembers(groupId: string, visited = new Set<string>()) {
   ]);
 
   const nestedMembers = await Promise.all(
-    children.map((child: { id: string }) => collectMembers(child.id, new Set(visited))),
+    children.map((child) => collectMembers(child.id, new Set(visited))),
   );
 
-  const byId = new Map<string, KeycloakUser>();
-  [...members, ...nestedMembers.flat()].forEach((member: KeycloakUser) => {
+  const byId = new Map<string, KeycloakMember>();
+  [...members, ...nestedMembers.flat()].forEach((member) => {
     if (member?.id) byId.set(member.id, member);
   });
 
@@ -73,7 +69,7 @@ export async function GET(
     });
   } catch (err: unknown) {
     return NextResponse.json(
-      { error: await getKeycloakError(err, "Failed to fetch group members") },
+      { error: err instanceof Error ? err.message : "Failed to fetch group members" },
       { status: 500 },
     );
   }

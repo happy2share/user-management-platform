@@ -1,15 +1,18 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { readApiResponse } from "../lib/api-response";
 import "../components/auth/landing-auth.css";
 
 function VerifyEmailContent() {
   const { t } = useLanguage();
   const searchParams = useSearchParams();
   const [username, setUsername] = useState(searchParams.get("username") || searchParams.get("email") || "");
+  const linkToken = searchParams.get("token") || "";
+  const autoVerifyStarted = useRef(false);
   const [otp, setOtp] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -22,7 +25,7 @@ function VerifyEmailContent() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await readApiResponse(response);
     return { response, data };
   }
 
@@ -32,22 +35,59 @@ function VerifyEmailContent() {
     setMessage("");
     setError("");
 
-    const { response, data } = await postJson("/api/public/email-verification/verify", {
-      username,
-      identifier: username,
-      otp,
-    });
+    try {
+      const { response, data } = await postJson("/api/public/email-verification/verify", {
+        username,
+        identifier: username,
+        otp,
+      });
 
-    setBusy(false);
+      if (!response.ok) {
+        setError(data.error || t("verifyEmail.failed"));
+        return;
+      }
 
-    if (!response.ok) {
-      setError(data.error || t("verifyEmail.failed"));
-      return;
+      setMessage(data.message || t("verifyEmail.success"));
+      setOtp("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("verifyEmail.failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!username || !linkToken || autoVerifyStarted.current) return;
+
+    autoVerifyStarted.current = true;
+
+    async function verifyLinkToken() {
+      setBusy(true);
+      setMessage("");
+      setError("");
+
+      try {
+        const { response, data } = await postJson("/api/public/email-verification/verify", {
+          username,
+          identifier: username,
+          token: linkToken,
+        });
+
+        if (!response.ok) {
+          setError(data.error || t("verifyEmail.failed"));
+          return;
+        }
+
+        setMessage(data.message || t("verifyEmail.success"));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t("verifyEmail.failed"));
+      } finally {
+        setBusy(false);
+      }
     }
 
-    setMessage(data.message || t("verifyEmail.success"));
-    setOtp("");
-  }
+    verifyLinkToken();
+  }, [linkToken, t, username]);
 
   async function handleResend() {
     setBusy(true);
@@ -55,20 +95,24 @@ function VerifyEmailContent() {
     setError("");
     setLocalOtpCode("");
 
-    const { response, data } = await postJson("/api/public/email-verification/send", {
-      username,
-      identifier: username,
-    });
+    try {
+      const { response, data } = await postJson("/api/public/email-verification/send", {
+        username,
+        identifier: username,
+      });
 
-    setBusy(false);
+      if (!response.ok) {
+        setError(data.error || t("verifyEmail.failedSend"));
+        return;
+      }
 
-    if (!response.ok) {
-      setError(data.error || t("verifyEmail.failedSend"));
-      return;
+      if (data.localOtpCode) setLocalOtpCode(data.localOtpCode);
+      setMessage(data.message || t("auth.emailOtpSent"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("verifyEmail.failedSend"));
+    } finally {
+      setBusy(false);
     }
-
-    if (data.localOtpCode) setLocalOtpCode(data.localOtpCode);
-    setMessage(data.message || t("auth.emailOtpSent"));
   }
 
   return (

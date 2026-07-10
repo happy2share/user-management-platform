@@ -14,8 +14,8 @@
   max-width: calc(100vw - 32px);
   max-height: 90vh;
   background: #ffffff;
-  border-radius: 14px;
-  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -30,7 +30,7 @@
 }
 
 .title {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
 }
@@ -65,5 +65,5 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  background: #fafafa;
+  background: var(--table-head-bg);
 }

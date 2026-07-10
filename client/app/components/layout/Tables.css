@@ -18,13 +18,13 @@
   font-weight: 600;
 
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
 
   color: var(--text-muted);
 
   border-bottom: 1px solid var(--border);
 
-  background: #fafafa;
+  background: var(--table-head-bg);
 
   white-space: nowrap;
 }
@@ -42,7 +42,7 @@
 }
 
 .table-wrap table tbody tr:hover td {
-  background: #fafafa;
+  background: var(--table-row-hover);
 }
 
 /* User Cell */

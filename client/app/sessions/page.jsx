@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AdminLayout from "../components/layout/AdminLayout";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { readApiResponse } from "../lib/api-response";
 import styles from "./sessions.module.css";
 
 function formatTime(value, fallback) {
@@ -18,7 +19,7 @@ export default function SessionsPage() {
   async function loadSessions() {
     setError("");
     const res = await fetch("/api/sessions", { cache: "no-store" });
-    const data = await res.json();
+    const data = await readApiResponse(res);
     if (!res.ok) return setError(data.error || t("sessions.failedLoad"));
     setSessions(data);
   }
@@ -37,7 +38,7 @@ export default function SessionsPage() {
       `/api/sessions/${encodeURIComponent(session.id)}?userId=${encodeURIComponent(session.userId)}`,
       { method: "DELETE" },
     );
-    const data = await res.json().catch(() => ({}));
+    const data = await readApiResponse(res);
     if (!res.ok) return alert(data.error || t("sessions.failedRevoke"));
     loadSessions();
   }
@@ -45,7 +46,7 @@ export default function SessionsPage() {
   async function revokeAll() {
     if (!confirm(t("sessions.revokeAllConfirm"))) return;
     const res = await fetch("/api/sessions", { method: "DELETE" });
-    const data = await res.json().catch(() => ({}));
+    const data = await readApiResponse(res);
     if (!res.ok) return alert(data.error || t("sessions.failedRevokeAll"));
     loadSessions();
   }

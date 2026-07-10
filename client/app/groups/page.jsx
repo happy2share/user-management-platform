@@ -3,6 +3,7 @@
 import { useMemo, useEffect, useState } from "react";
 import AdminLayout from "../components/layout/AdminLayout";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { readApiResponse } from "../lib/api-response";
 import "./groups.css";
 
 function flattenGroups(groups, level = 0) {
@@ -32,7 +33,7 @@ export default function GroupsPage() {
       setError("");
 
       const res = await fetch("/api/groups", { cache: "no-store" });
-      const data = await res.json();
+      const data = await readApiResponse(res);
 
       if (!res.ok) {
         throw new Error(data.error || t("groups.failedLoad"));
@@ -63,7 +64,7 @@ export default function GroupsPage() {
     });
 
     if (!res.ok) {
-      const data = await res.json();
+      const data = await readApiResponse(res);
       alert(data.error || t("groups.failedCreate"));
       return;
     }
@@ -81,7 +82,7 @@ export default function GroupsPage() {
     });
 
     if (!res.ok) {
-      const data = await res.json();
+      const data = await readApiResponse(res);
       alert(data.error || t("groups.failedDelete"));
       return;
     }
@@ -104,7 +105,7 @@ export default function GroupsPage() {
         cache: "no-store",
       });
 
-      const data = await res.json();
+      const data = await readApiResponse(res);
 
       if (!res.ok) {
         throw new Error(data.error || t("groups.failedMembers"));

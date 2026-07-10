@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { readApiResponse } from "../../lib/api-response";
 import "./activation.css";
 
 const STEP_ORDER = ["start", "terms", "password", "email", "mfa", "complete"];
@@ -28,30 +29,6 @@ function nextPath(currentStep, token, nextStep) {
   return pathFor(STEP_ORDER[Math.min(index + 1, STEP_ORDER.length - 1)], token);
 }
 
-function StepProgress({ completed, activeStep }) {
-  return (
-    <div className="activation-steps">
-      {["terms", "password", "email", "mfa", "complete"].map((item) => (
-        <div
-          key={item}
-          className={`activation-step-pill ${completed[item] ? "done" : ""} ${activeStep === item ? "active" : ""}`}
-        >
-          {STEP_LABELS[item]}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function StatusBlock({ status }) {
-  if (!status) return null;
-  return (
-    <div className="activation-alert info">
-      Account: <strong>{status.username}</strong> {status.email ? `(${status.email})` : ""}
-    </div>
-  );
-}
-
 export default function ActivationStep({ step, initialToken = "", initialEmailToken = "" }) {
   const router = useRouter();
   const [token, setToken] = useState(initialToken || "");
@@ -75,7 +52,7 @@ export default function ActivationStep({ step, initialToken = "", initialEmailTo
     const response = await fetch(`/api/activation/status?token=${encodeURIComponent(targetToken)}`, {
       cache: "no-store",
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await readApiResponse(response);
     if (!response.ok) throw new Error(data.error || "Failed to load activation status");
     setStatus(data);
     return data;
@@ -86,6 +63,7 @@ export default function ActivationStep({ step, initialToken = "", initialEmailTo
     const timeoutId = window.setTimeout(() => {
       loadStatus(initialToken).catch((err) => setError(err.message));
     }, 0);
+
     return () => window.clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialToken]);
@@ -119,7 +97,7 @@ export default function ActivationStep({ step, initialToken = "", initialEmailTo
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = await response.json().catch(() => ({}));
+    const data = await readApiResponse(response);
     if (!response.ok) throw new Error(data.error || "Request failed");
     return data;
   }
@@ -249,8 +227,21 @@ export default function ActivationStep({ step, initialToken = "", initialEmailTo
           update password, verify email, and configure MFA.
         </p>
 
-        <StepProgress completed={completed} activeStep={activeStep} />
-        <StatusBlock status={status} />
+        <div className="activation-steps">
+          {["terms", "password", "email", "mfa", "complete"].map((item) => (
+            <div
+              key={item}
+              className={`activation-step-pill ${completed[item] ? "done" : ""} ${activeStep === item ? "active" : ""}`}
+            >
+              {STEP_LABELS[item]}
+            </div>
+          ))}
+        </div>
+        {status && (
+          <div className="activation-alert info">
+            Account: <strong>{status.username}</strong> {status.email ? `(${status.email})` : ""}
+          </div>
+        )}
 
         {error && <div className="activation-alert error">{error}</div>}
         {message && <div className="activation-alert success">{message}</div>}
@@ -388,9 +379,6 @@ export default function ActivationStep({ step, initialToken = "", initialEmailTo
                   <code>{mfaSetup.secret}</code>
                   {mfaSetup.otpauthUri && (
                     <textarea readOnly value={mfaSetup.otpauthUri} aria-label="OTP Auth URI" />
-                  )}
-                  {mfaSetup.qrSvg && (
-                    <div dangerouslySetInnerHTML={{ __html: mfaSetup.qrSvg }} />
                   )}
                 </div>
                 <p className="activation-note">

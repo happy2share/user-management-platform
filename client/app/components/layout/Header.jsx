@@ -16,7 +16,7 @@ import { useLanguage } from "../../i18n/LanguageProvider";
 import { getRoleLabel } from "../../i18n/role-labels";
 import { completeLogout } from "../../lib/logout";
 
-export default function Header({ title, collapsed, setCollapsed }) {
+export default function Header({ title, collapsed, setCollapsed, profileHref = "/realm" }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const { data: session } = useSession();
@@ -119,7 +119,7 @@ export default function Header({ title, collapsed, setCollapsed }) {
                 </div>
               </div>
 
-              <Link href="/realm" className="dropdown-item">
+              <Link href={profileHref} className="dropdown-item">
                 <User size={16} />
                 {t("header.profileRealm")}
               </Link>

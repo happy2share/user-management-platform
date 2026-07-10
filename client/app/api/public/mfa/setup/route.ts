@@ -1,16 +1,16 @@
 export const runtime = "nodejs";
-import { NextResponse } from "next/server";
-import { findUserByUsername, getKeycloakError } from "../../../../lib/keycloak-users";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
+import { logError } from "@/app/lib/file-logger.mjs";
+import { findUserByUsername } from "../../../../lib/keycloak-users";
 import { verifyPasswordWithKeycloak } from "../../../../lib/keycloak-password";
 import {
   buildOtpAuthUri,
-  buildQrImageUrl,
   encryptText,
   isAppMfaConfigured,
   randomBase32Secret,
   updateUserAttributes,
 } from "../../../../lib/app-mfa";
-import { normalizeObjectTextFields } from "../../../../lib/english-normalizer";
+import { normalizeObjectTextFields } from "../../../../i18n/english-normalizer";
 
 export async function POST(req: Request) {
   try {
@@ -20,25 +20,40 @@ export async function POST(req: Request) {
     const password = rawBody.password;
 
     if (!username || !password) {
-      return NextResponse.json({ error: "Username and password are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Username and password are required" },
+        { status: 400 },
+      );
     }
 
     const passwordCheck = await verifyPasswordWithKeycloak(username, password);
     if (!passwordCheck.ok) {
-      return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid username or password" },
+        { status: 401 },
+      );
     }
 
     const user = await findUserByUsername(username);
     if (!user?.id) {
-      return NextResponse.json({ error: "Invalid username or password" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid username or password" },
+        { status: 401 },
+      );
     }
 
     if (user.emailVerified !== true) {
-      return NextResponse.json({ error: "Verify your email before setting up MFA" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Verify your email before setting up MFA" },
+        { status: 403 },
+      );
     }
 
     if (isAppMfaConfigured(user)) {
-      return NextResponse.json({ error: "MFA is already configured" }, { status: 400 });
+      return NextResponse.json(
+        { error: "MFA is already configured" },
+        { status: 400 },
+      );
     }
 
     const secret = randomBase32Secret();
@@ -54,13 +69,19 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       otpauthUri,
-      qrImageUrl: await buildQrImageUrl(otpauthUri),
       manualKey: secret,
-      message: "Scan the QR code and enter the OTP from your authenticator app.",
+      message:
+        "Scan the QR code and enter the OTP from your authenticator app.",
     });
   } catch (error: unknown) {
+    void logError("Failed to start MFA setup", {
+      endpoint: "/api/public/mfa/setup",
+      method: "POST",
+      operation: "mfa.setup",
+      error,
+    });
     return NextResponse.json(
-      { error: await getKeycloakError(error, "Failed to start MFA setup") },
+      { error: "Failed to start MFA setup" },
       { status: 500 },
     );
   }
