@@ -1,18 +1,20 @@
 export const runtime = "nodejs";
 import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../../../lib/api-auth";
+import { logRequestEntry } from "../../../../lib/app-utilities";
 import { keycloakAdminFetch } from "../../../../lib/keycloak";
 import { sendEmailVerification } from "../../../../lib/app-email";
 
 export async function POST(
-  _req: Request,
+  req: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const unauthorized = await requireRealmAdmin();
   if (unauthorized) return unauthorized;
+  const { id } = await context.params;
+  await logRequestEntry(req, { id });
 
   try {
-    const { id } = await context.params;
     const userRes = await keycloakAdminFetch(`/users/${encodeURIComponent(id)}`);
 
     if (!userRes.ok) {

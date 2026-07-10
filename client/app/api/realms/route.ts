@@ -1,11 +1,13 @@
 import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../lib/api-auth";
+import { logRequestEntry } from "../../lib/app-utilities";
 import { keycloakAdminFetch } from "../../lib/keycloak";
 import { normalizeObjectTextFields } from "../../i18n/english-normalizer";
 
-export async function GET() {
+export async function GET(req: Request) {
   const unauthorized = await requireRealmAdmin();
   if (unauthorized) return unauthorized;
+  await logRequestEntry(req);
 
   try {
     const res = await keycloakAdminFetch("");
@@ -43,6 +45,7 @@ export async function GET() {
 export async function PUT(req: Request) {
   const unauthorized = await requireRealmAdmin();
   if (unauthorized) return unauthorized;
+  await logRequestEntry(req);
 
   try {
     const body = normalizeObjectTextFields(await req.json(), ["displayName"]);
