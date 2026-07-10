@@ -350,6 +350,7 @@ const en = {
     time: "Time",
     category: "Category",
     action: "Action",
+    message: "Message",
     actor: "Actor",
     account: "Account",
     resource: "Resource",
