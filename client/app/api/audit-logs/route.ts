@@ -2,6 +2,8 @@ import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "@/app/lib/api-auth";
 import { keycloakAdminFetch } from "@/app/lib/keycloak";
 import { KEYCLOAK_ADMIN_CLIENT_ID } from "@/app/lib/constants";
+import { getUserRealmRoles } from "@/app/lib/keycloak-users";
+import { highestStaffRole } from "@/app/lib/staff-portals";
 
 type UserEvent = {
   id?: string;
@@ -65,6 +67,26 @@ async function usernameMap(userIds: string[]) {
   return new Map(entries);
 }
 
+function mainRole(roles: string[]) {
+  if (roles.includes("realm-admin")) return "admin";
+  return highestStaffRole(roles) || (roles.includes("app-user") ? "user" : roles[0]) || "-";
+}
+
+async function roleMap(userIds: string[]) {
+  const uniqueIds = [...new Set(userIds.filter(Boolean))];
+  const entries = await Promise.all(
+    uniqueIds.map(async (id) => {
+      try {
+        const roles = (await getUserRealmRoles(id)) as Array<{ name: string }>;
+        return [id, mainRole(roles.map((role) => role.name))] as const;
+      } catch {
+        return [id, "-"] as const;
+      }
+    }),
+  );
+  return new Map(entries);
+}
+
 export async function GET(request: Request) {
   const unauthorized = await requireRealmAdmin();
   if (unauthorized) return unauthorized;
@@ -102,7 +124,12 @@ export async function GET(request: Request) {
       ...adminEvents.map((event) => event.authDetails?.userId || ""),
       ...adminEvents.map((event) => targetUserId(event.resourcePath) || ""),
     ]);
+    const roles = await roleMap([
+      ...userEvents.map((event) => event.userId || ""),
+      ...adminEvents.map((event) => event.authDetails?.userId || ""),
+    ]);
     const nameOf = (id?: string) => (id ? names.get(id) || id : "-");
+    const roleOf = (id?: string) => (id ? roles.get(id) || "-" : "-");
 
     const logs = [
       ...userEvents
@@ -117,7 +144,7 @@ export async function GET(request: Request) {
         .map((event, index) => {
           const action = event.type || "UNKNOWN";
           const status = event.error ? "Failed" : "Success";
-          const actor = event.details?.username || nameOf(event.userId);
+          const actor = roleOf(event.userId);
           const account = event.details?.username || nameOf(event.userId);
           const resource = event.realmId || "-";
           return {
@@ -143,7 +170,7 @@ export async function GET(request: Request) {
             ? "UPDATE USER CREDENTIALS"
             : [event.operationType, event.resourceType].filter(Boolean).join(" ");
         const status = event.error ? "Failed" : "Success";
-        const actor = nameOf(event.authDetails?.userId);
+        const actor = roleOf(event.authDetails?.userId);
         const account = nameOf(accountId);
         const resource = event.resourcePath || event.realmId || "-";
         return {
