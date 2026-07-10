@@ -56,6 +56,7 @@ export default function AuditLogsPage() {
                 <th>{t("auditLogs.action")}</th>
                 <th>{t("common.status")}</th>
                 <th>{t("auditLogs.actor")}</th>
+                <th>{t("auditLogs.account")}</th>
                 <th>{t("auditLogs.resource")}</th>
                 <th>{t("sessions.ipAddress")}</th>
               </tr>
@@ -63,7 +64,7 @@ export default function AuditLogsPage() {
             <tbody>
               {logs.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <div className="empty-state">
                       <p>{error ? t("auditLogs.enableHint") : t("auditLogs.noLogs")}</p>
                     </div>
@@ -92,6 +93,7 @@ export default function AuditLogsPage() {
                       </span>
                     </td>
                     <td>{log.actor}</td>
+                    <td>{log.account}</td>
                     <td>{log.resource}</td>
                     <td>
                       <code>{log.ipAddress}</code>

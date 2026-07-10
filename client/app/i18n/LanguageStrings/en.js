@@ -351,6 +351,7 @@ const en = {
     category: "Category",
     action: "Action",
     actor: "Actor",
+    account: "Account",
     resource: "Resource",
   },
   userPortal: {

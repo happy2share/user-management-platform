@@ -30,6 +30,23 @@ type AdminEvent = {
   error?: string;
 };
 
+function targetUserId(resourcePath?: string) {
+  return resourcePath?.match(/(?:^|\/)users\/([^/]+)/)?.[1];
+}
+
+async function usernameMap(userIds: string[]) {
+  const uniqueIds = [...new Set(userIds.filter(Boolean))];
+  const entries = await Promise.all(
+    uniqueIds.map(async (id) => {
+      const response = await keycloakAdminFetch(`/users/${encodeURIComponent(id)}`);
+      if (!response.ok) return [id, id] as const;
+      const user = (await response.json()) as { username?: string };
+      return [id, user.username || id] as const;
+    }),
+  );
+  return new Map(entries);
+}
+
 export async function GET(request: Request) {
   const unauthorized = await requireRealmAdmin();
   if (unauthorized) return unauthorized;
@@ -62,6 +79,12 @@ export async function GET(request: Request) {
 
     const userEvents = (await userResponse.json()) as UserEvent[];
     const adminEvents = (await adminResponse.json()) as AdminEvent[];
+    const names = await usernameMap([
+      ...userEvents.map((event) => event.userId || ""),
+      ...adminEvents.map((event) => event.authDetails?.userId || ""),
+      ...adminEvents.map((event) => targetUserId(event.resourcePath) || ""),
+    ]);
+    const nameOf = (id?: string) => (id ? names.get(id) || id : "-");
 
     const logs = [
       ...userEvents
@@ -79,28 +102,33 @@ export async function GET(request: Request) {
           category: "Authentication",
           action: event.type || "UNKNOWN",
           status: event.error ? "Failed" : "Success",
-          actor: event.details?.username || event.userId || "-",
+          actor: event.details?.username || nameOf(event.userId),
+          account: event.details?.username || nameOf(event.userId),
           client: event.clientId || event.details?.client_id || "-",
           resource: event.realmId || "-",
           ipAddress: event.ipAddress || "-",
           error: event.error || "",
         })),
-      ...adminEvents.map((event, index) => ({
-        id: `admin-${event.id || `${event.time}-${event.operationType}-${event.resourcePath || ""}-${index}`}`,
-        time: event.time,
-        category: "Administration",
-        action: event.resourcePath?.includes("reset-password")
-          ? "RESET USER PASSWORD"
-          : event.resourcePath?.includes("credentials")
-            ? "UPDATE USER CREDENTIALS"
-            : [event.operationType, event.resourceType].filter(Boolean).join(" "),
-        status: event.error ? "Failed" : "Success",
-        actor: event.authDetails?.userId || "-",
-        client: event.authDetails?.clientId || "-",
-        resource: event.resourcePath || event.realmId || "-",
-        ipAddress: event.authDetails?.ipAddress || "-",
-        error: event.error || "",
-      })),
+      ...adminEvents.map((event, index) => {
+        const accountId = targetUserId(event.resourcePath);
+        return {
+          id: `admin-${event.id || `${event.time}-${event.operationType}-${event.resourcePath || ""}-${index}`}`,
+          time: event.time,
+          category: "Administration",
+          action: event.resourcePath?.includes("reset-password")
+            ? "RESET USER PASSWORD"
+            : event.resourcePath?.includes("credentials")
+              ? "UPDATE USER CREDENTIALS"
+              : [event.operationType, event.resourceType].filter(Boolean).join(" "),
+          status: event.error ? "Failed" : "Success",
+          actor: nameOf(event.authDetails?.userId),
+          account: nameOf(accountId),
+          client: event.authDetails?.clientId || "-",
+          resource: event.resourcePath || event.realmId || "-",
+          ipAddress: event.authDetails?.ipAddress || "-",
+          error: event.error || "",
+        };
+      }),
     ]
       .sort((a, b) => b.time - a.time)
       .slice(0, max);
