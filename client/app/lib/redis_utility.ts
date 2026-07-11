@@ -272,9 +272,9 @@ export async function clearRateLimitIdentifier(
 
 export const rateLimits = {
   default: { attempts: 100, timeRangeSeconds: 60 },
-  auth: { attempts: 5, timeRangeSeconds: 60 },
+  auth: { attempts: 20, timeRangeSeconds: 60 },
   register: { attempts: 5, timeRangeSeconds: 300 },
-  passwordCheck: { attempts: 10, timeRangeSeconds: 60 },
+  passwordCheck: { attempts: 20, timeRangeSeconds: 60 },
   emailSend: { attempts: 3, timeRangeSeconds: 300 },
   emailVerify: { attempts: 10, timeRangeSeconds: 300 },
   mfaSetup: { attempts: 5, timeRangeSeconds: 300 },

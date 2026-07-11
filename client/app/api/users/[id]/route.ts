@@ -1,6 +1,6 @@
 import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../../lib/api-auth";
-import { logRequestEntry } from "../../../lib/app-utilities";
+import { commonEntryLog } from "../../../lib/app-utilities";
 import { keycloakAdminFetch } from "../../../lib/keycloak";
 import { normalizeObjectTextFields } from "../../../i18n/english-normalizer";
 import {
@@ -19,7 +19,7 @@ export async function GET(request: Request, context: RouteContext) {
 
   try {
     const { id } = await context.params;
-    await logRequestEntry(request, { id });
+    await commonEntryLog(request, { id });
 
     if (!id) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
@@ -50,7 +50,7 @@ export async function PUT(request: Request, context: RouteContext) {
 
   try {
     const { id } = await context.params;
-    await logRequestEntry(request, { id });
+    await commonEntryLog(request, { id });
     const rawBody = await request.json();
     const body = normalizeObjectTextFields(rawBody, [
       "firstName",
@@ -141,7 +141,7 @@ export async function DELETE(request: Request, context: RouteContext) {
 
   try {
     const { id } = await context.params;
-    await logRequestEntry(request, { id });
+    await commonEntryLog(request, { id });
 
     if (!id) {
       return NextResponse.json(

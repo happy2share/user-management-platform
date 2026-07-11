@@ -65,10 +65,12 @@ function envelope<T>(body: T | LegacyError, status = 200): ApiResponse<T> {
   return { data: body as T, meta: { timestamp } };
 }
 
+export function commonResponse<T>(body: T | LegacyError, init?: ResponseInit) {
+  return NextResponse.json(envelope(body, init?.status), init);
+}
+
 export const ApiNextResponse = {
-  json<T>(body: T | LegacyError, init?: ResponseInit) {
-    return NextResponse.json(envelope(body, init?.status), init);
-  },
+  json: commonResponse,
 };
 
 export async function readApiResponse<T>(response: Response): Promise<T> {

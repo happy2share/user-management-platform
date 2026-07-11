@@ -52,7 +52,3 @@ export function getRoleLabel(roleName, language = "en") {
   const labels = ROLE_LABELS[roleName];
   return labels?.[language] || labels?.en || roleName;
 }
-
-export function hasRoleLabel(roleName) {
-  return Boolean(ROLE_LABELS[roleName]);
-}

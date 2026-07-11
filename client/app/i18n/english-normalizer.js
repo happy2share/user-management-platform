@@ -9,10 +9,6 @@ const SCRIPT_ENTRIES = [
 
 const SCRIPT_MAP = Object.fromEntries(SCRIPT_ENTRIES);
 
-export function containsNonEnglish(value = "") {
-  return /[^\u0000-\u007F]/.test(String(value));
-}
-
 export function normalizeToEnglish(value = "", options = {}) {
   const { username = false, trimUsernameDots = true } = options;
   let text = String(value)
