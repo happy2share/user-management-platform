@@ -1,5 +1,6 @@
 export const runtime = "nodejs";
 import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
+import { logError } from "@/app/lib/file-logger.mjs";
 import { verifyEmailOtp } from "../../../../lib/app-email";
 import { normalizeObjectTextFields } from "../../../../i18n/english-normalizer";
 import {
@@ -7,16 +8,32 @@ import {
   rateLimitIdentifier,
 } from "../../../../lib/redis_utility";
 
+function isOtpValidationError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  return (
+    error.message.includes("Invalid email verification code") ||
+    error.message.includes("Email verification code expired") ||
+    error.message.includes("6-digit email OTP")
+  );
+}
+
 export async function POST(req: Request) {
   try {
     const rawBody = await req.json();
     const body = normalizeObjectTextFields(rawBody, ["username"]);
     const identifier = String(
       body.username || rawBody.email || rawBody.identifier || "",
-    ).trim().toLowerCase();
-    if (await rateLimitIdentifier("email-verify", identifier || "missing", 5, 300)) {
+    )
+      .trim()
+      .toLowerCase();
+    if (
+      await rateLimitIdentifier("email-verify", identifier || "missing", 5, 300)
+    ) {
       return NextResponse.json(
-        { verified: false, error: "Too many verification attempts. Try again later." },
+        {
+          verified: false,
+          error: "Too many verification attempts. Try again later.",
+        },
         { status: 429 },
       );
     }
@@ -37,13 +54,21 @@ export async function POST(req: Request) {
       ...result,
     });
   } catch (error: unknown) {
+    const otpValidationError = isOtpValidationError(error);
+    void logError("Failed to verify email OTP", {
+      endpoint: "/api/public/email-verification/verify",
+      method: "POST",
+      operation: "emailVerification.verify",
+      error,
+    });
     return NextResponse.json(
       {
         verified: false,
-        error:
-          error instanceof Error ? error.message : "Failed to verify email OTP",
+        error: otpValidationError
+          ? "Invalid or expired email verification code"
+          : "Failed to verify email OTP",
       },
-      { status: 400 },
+      { status: otpValidationError ? 400 : 500 },
     );
   }
 }
