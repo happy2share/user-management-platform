@@ -1,20 +1,36 @@
 export const runtime = "nodejs";
 import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
+import { logError } from "@/app/lib/file-logger.mjs";
 import { findUserByUsernameOrEmail } from "../../../lib/keycloak-users";
 import { sendEmailVerification } from "../../../lib/app-email";
+import { normalizeObjectTextFields } from "../../../i18n/english-normalizer";
+import { rateLimitIdentifier } from "../../../lib/redis_utility";
 
 const GENERIC_SUCCESS_MESSAGE =
   "If an account exists with that username or email, a reset code has been sent.";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const identifier = String(body.identifier || "").trim();
+    const rawBody = await request.json();
+    const body = normalizeObjectTextFields(rawBody, ["identifier", "username"]);
+    const identifier = String(
+      body.identifier || body.username || rawBody.email || "",
+    ).trim();
+    const normalizedIdentifier = identifier.toLowerCase();
 
     if (!identifier) {
       return NextResponse.json(
         { error: "Username or email is required" },
         { status: 400 },
+      );
+    }
+
+    if (
+      await rateLimitIdentifier("forgot-password", normalizedIdentifier, 5, 300)
+    ) {
+      return NextResponse.json(
+        { error: "Too many reset requests. Try again later." },
+        { status: 429 },
       );
     }
 
@@ -28,26 +44,22 @@ export async function POST(request: Request) {
     }
 
     if (user.enabled === false) {
-      return NextResponse.json(
-        { error: "This account is disabled. Contact an administrator." },
-        { status: 403 },
-      );
+      return NextResponse.json({ message: GENERIC_SUCCESS_MESSAGE });
     }
 
-    const verification = await sendEmailVerification(user);
+    await sendEmailVerification(user);
 
-    return NextResponse.json({
-      message: GENERIC_SUCCESS_MESSAGE,
-      emailSent: verification.emailSent,
-      localOtpCode: verification.localOtpCode,
-    });
+    return NextResponse.json({ message: GENERIC_SUCCESS_MESSAGE });
   } catch (error: unknown) {
+    void logError("Failed to start forgot-password flow", {
+      endpoint: "/api/public/forgot-password",
+      method: "POST",
+      operation: "password.forgot",
+      error,
+    });
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to send password reset code",
+        error: "Failed to send password reset code",
       },
       { status: 500 },
     );
