@@ -7,6 +7,7 @@ const MAX_BYTES = Number(process.env.IAM_LOG_MAX_BYTES || 1024 * 1024);
 const MAX_FILES = Math.max(2, Number(process.env.IAM_LOG_MAX_FILES || 5));
 const REDACTED = "[redacted]";
 const SENSITIVE_KEY = /(password|secret|token|otp|authorization|cookie)/i;
+const LEVELS = ["debug", "info", "warn", "error"];
 
 function filePath(level, index = 0) {
   return path.join(LOG_DIR, `${level}.log${index ? `.${index}` : ""}`);
@@ -89,4 +90,26 @@ export function logError(message, meta) {
 
 export function logDebug(message, meta) {
   return write("debug", message, meta);
+}
+
+export async function readLocalLogs(limit = 200) {
+  const contents = await Promise.all(
+    LEVELS.flatMap((level) =>
+      Array.from({ length: MAX_FILES }, (_, index) =>
+        fs.readFile(filePath(level, index), "utf8").catch(() => ""),
+      ),
+    ),
+  );
+
+  return contents
+    .flatMap((content) => content.split("\n").filter(Boolean))
+    .flatMap((line) => {
+      try {
+        return [JSON.parse(line)];
+      } catch {
+        return [];
+      }
+    })
+    .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))
+    .slice(0, Math.max(0, limit));
 }

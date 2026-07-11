@@ -1,7 +1,6 @@
 import { getServerSession } from "next-auth";
-import { ApiNextResponse } from "./api-response";
 import { authOptions } from "./auth";
-import { logInfo } from "./file-logger.mjs";
+import { logDebug, logError, logInfo, logWarn } from "./file-logger.mjs";
 
 type SessionInfo = {
   userId?: string;
@@ -13,9 +12,21 @@ type SessionInfo = {
 };
 
 type RouteParams = Record<string, unknown>;
+type LogLevel = "debug" | "info" | "warn" | "error";
 
-export function commonResponse<T>(body: T, init?: ResponseInit) {
-  return ApiNextResponse.json(body, init);
+const logWriters = {
+  debug: logDebug,
+  info: logInfo,
+  warn: logWarn,
+  error: logError,
+};
+
+export function logEntry(
+  level: LogLevel,
+  message: string,
+  meta: Record<string, unknown> = {},
+) {
+  return logWriters[level](message, meta).catch(() => {});
 }
 
 function getIpAddress(request: Request) {
@@ -32,7 +43,7 @@ async function readBody(request: Request) {
   return request.clone().json().catch(() => "[unreadable body]");
 }
 
-export async function logRequestEntry(
+export async function commonEntryLog(
   request: Request,
   params: RouteParams = {},
 ) {
@@ -41,7 +52,7 @@ export async function logRequestEntry(
     | SessionInfo
     | null;
 
-  await logInfo(`${request.method} ${url.pathname} requested from admin UI`, {
+  await logEntry("info", `${request.method} ${url.pathname} requested from admin UI`, {
     userInfo: {
       userId: session?.userId,
       name: session?.user?.name,

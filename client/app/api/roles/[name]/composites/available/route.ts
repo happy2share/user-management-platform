@@ -1,5 +1,6 @@
 import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../../../../lib/api-auth";
+import { cleanDisplayText as cleanDescription } from "../../../../../lib/display-text";
 import { keycloakAdminFetch } from "../../../../../lib/keycloak";
 import { getKeycloakError } from "../../../../../lib/keycloak-users";
 
@@ -20,18 +21,6 @@ type RoleRep = {
 function roleKey(role: RoleRep) {
   if (!role.clientRole) return `realm:${role.name}`;
   return `client:${role.containerId || role.clientUuid || role.clientId}:${role.name}`;
-}
-
-function cleanDescription(description?: string) {
-  if (!description) return "";
-  const match = description.match(/^\$\{([^}]+)\}$/);
-  if (match?.[1]) {
-    return match[1]
-      .replace(/^(role|client)_/, "")
-      .replace(/[-_]/g, " ")
-      .replace(/\b\w/g, (letter) => letter.toUpperCase());
-  }
-  return description;
 }
 
 function normalizeRealmRole(role: RoleRep, assignedKeys: Set<string>) {

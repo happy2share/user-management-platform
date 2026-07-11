@@ -343,7 +343,7 @@ const en = {
   },
   auditLogs: {
     title: "Audit Logs",
-    subtitle: "{count} recent authentication and administration events from Keycloak",
+    subtitle: "{count} recent application and Keycloak audit events",
     failedLoad: "Failed to load audit logs",
     enableHint: "Enable user events and admin events in Keycloak to collect audit logs.",
     noLogs: "No audit events found",
@@ -351,6 +351,7 @@ const en = {
     category: "Category",
     action: "Action",
     message: "Message",
+    level: "Level",
     actor: "Actor",
     account: "Account",
     resource: "Resource",

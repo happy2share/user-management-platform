@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../lib/api-auth";
-import { logRequestEntry } from "../../lib/app-utilities";
+import { commonEntryLog } from "../../lib/app-utilities";
 import { keycloakAdminFetch } from "../../lib/keycloak";
 import { normalizeObjectTextFields } from "../../i18n/english-normalizer";
 import {
@@ -17,7 +17,7 @@ import { sendEmailVerification } from "../../lib/app-email";
 export async function GET(req: Request) {
   const unauthorized = await requireRealmAdmin();
   if (unauthorized) return unauthorized;
-  await logRequestEntry(req);
+  await commonEntryLog(req);
 
   try {
     const res = await keycloakAdminFetch("/users?max=1000");
@@ -64,7 +64,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const unauthorized = await requireRealmAdmin();
   if (unauthorized) return unauthorized;
-  await logRequestEntry(req);
+  await commonEntryLog(req);
 
   try {
     const rawBody = await req.json();

@@ -55,6 +55,7 @@ export default function AuditLogsPage() {
                 <th>{t("auditLogs.category")}</th>
                 <th>{t("auditLogs.action")}</th>
                 <th>{t("auditLogs.message")}</th>
+                <th>{t("auditLogs.level")}</th>
                 <th>{t("common.status")}</th>
                 <th>{t("auditLogs.actor")}</th>
                 <th>{t("auditLogs.account")}</th>
@@ -65,7 +66,7 @@ export default function AuditLogsPage() {
             <tbody>
               {logs.length === 0 ? (
                 <tr>
-                  <td colSpan={9}>
+                  <td colSpan={10}>
                     <div className="empty-state">
                       <p>{error ? t("auditLogs.enableHint") : t("auditLogs.noLogs")}</p>
                     </div>
@@ -85,10 +86,15 @@ export default function AuditLogsPage() {
                       )}
                     </td>
                     <td>{log.message}</td>
+                    <td><code>{log.level || "INFO"}</code></td>
                     <td>
                       <span
                         className={`badge ${
-                          log.status === "Success" ? "badge-green" : "badge-red"
+                          log.status === "Success"
+                            ? "badge-green"
+                            : log.status === "Warning"
+                              ? "badge-warning"
+                              : "badge-red"
                         }`}
                       >
                         {log.status}

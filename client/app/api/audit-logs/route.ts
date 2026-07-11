@@ -4,6 +4,7 @@ import { keycloakAdminFetch } from "@/app/lib/keycloak";
 import { KEYCLOAK_ADMIN_CLIENT_ID } from "@/app/lib/constants";
 import { getUserRealmRoles } from "@/app/lib/keycloak-users";
 import { highestStaffRole } from "@/app/lib/staff-portals";
+import { readLocalLogs } from "@/app/lib/file-logger.mjs";
 
 type UserEvent = {
   id?: string;
@@ -30,6 +31,28 @@ type AdminEvent = {
   resourceType?: string;
   resourcePath?: string;
   error?: string;
+};
+
+type LocalEvent = {
+  timestamp?: string;
+  level?: string;
+  message?: string;
+  meta?: {
+    actor?: unknown;
+    account?: unknown;
+    username?: unknown;
+    endpoint?: unknown;
+    component?: unknown;
+    method?: unknown;
+    operation?: unknown;
+    ipAddress?: unknown;
+    error?: unknown;
+    userInfo?: {
+      userId?: unknown;
+      name?: unknown;
+      email?: unknown;
+    };
+  };
 };
 
 function targetUserId(resourcePath?: string) {
@@ -87,6 +110,34 @@ async function roleMap(userIds: string[]) {
   return new Map(entries);
 }
 
+function localAuditLogs(entries: LocalEvent[]) {
+  return entries.map((entry, index) => {
+    const meta = entry.meta || {};
+    const user = meta.userInfo || {};
+    const level = String(entry.level || "info").toUpperCase();
+    const actor = String(meta.actor || user.name || user.email || user.userId || meta.username || "system");
+    const account = String(meta.account || meta.username || user.email || user.name || user.userId || "-");
+    const endpoint = String(meta.endpoint || meta.component || "local");
+    const action = String(meta.operation || [meta.method, meta.endpoint].filter(Boolean).join(" ") || entry.message || "LOG");
+
+    return {
+      id: `local-${entry.timestamp || "unknown"}-${index}`,
+      time: Date.parse(entry.timestamp || "") || Date.now(),
+      category: "Application",
+      action,
+      status: level === "ERROR" ? "Failed" : level === "WARN" ? "Warning" : "Success",
+      level,
+      message: entry.message || action,
+      actor,
+      account,
+      client: "application",
+      resource: endpoint,
+      ipAddress: String(meta.ipAddress || "-"),
+      error: level === "ERROR" && typeof meta.error === "string" ? meta.error : "",
+    };
+  });
+}
+
 export async function GET(request: Request) {
   const unauthorized = await requireRealmAdmin();
   if (unauthorized) return unauthorized;
@@ -95,6 +146,7 @@ export async function GET(request: Request) {
   const max = Number.isInteger(requestedMax)
     ? Math.min(Math.max(requestedMax, 1), 500)
     : 100;
+  const localLogs = localAuditLogs((await readLocalLogs(max)) as LocalEvent[]);
 
   try {
     const [userResponse, adminResponse] = await Promise.all([
@@ -103,6 +155,7 @@ export async function GET(request: Request) {
     ]);
 
     if (userResponse.status === 403 || adminResponse.status === 403) {
+      if (localLogs.length) return NextResponse.json(localLogs.slice(0, max));
       return NextResponse.json(
         {
           error:
@@ -132,6 +185,7 @@ export async function GET(request: Request) {
     const roleOf = (id?: string) => (id ? roles.get(id) || "-" : "-");
 
     const logs = [
+      ...localLogs,
       ...userEvents
         .filter(
           (event) =>
@@ -153,6 +207,7 @@ export async function GET(request: Request) {
             category: "Authentication",
             action,
             status,
+            level: event.error ? "ERROR" : "INFO",
             message: eventMessage({ action, actor, account, resource, status }),
             actor,
             account,
@@ -179,6 +234,7 @@ export async function GET(request: Request) {
           category: "Administration",
           action,
           status,
+          level: event.error ? "ERROR" : "INFO",
           message: eventMessage({ action, actor, account, resource, status }),
           actor,
           account,
@@ -194,6 +250,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(logs);
   } catch (error: unknown) {
+    if (localLogs.length) return NextResponse.json(localLogs.slice(0, max));
     return NextResponse.json(
       {
         error:
