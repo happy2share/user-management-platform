@@ -138,6 +138,24 @@ function localAuditLogs(entries: LocalEvent[]) {
   });
 }
 
+function auditWarning(message: string) {
+  return {
+    id: `audit-warning-${Date.now()}`,
+    time: Date.now(),
+    category: "System",
+    action: "AUDIT SOURCE UNAVAILABLE",
+    status: "Warning",
+    level: "WARN",
+    message,
+    actor: "system",
+    account: "-",
+    client: "application",
+    resource: "Keycloak audit events",
+    ipAddress: "-",
+    error: "",
+  };
+}
+
 export async function GET(request: Request) {
   const unauthorized = await requireRealmAdmin();
   if (unauthorized) return unauthorized;
@@ -155,7 +173,12 @@ export async function GET(request: Request) {
     ]);
 
     if (userResponse.status === 403 || adminResponse.status === 403) {
-      if (localLogs.length) return NextResponse.json(localLogs.slice(0, max));
+      if (localLogs.length) {
+        return NextResponse.json([
+          auditWarning("Keycloak denied audit-event access; showing local logs only."),
+          ...localLogs,
+        ].slice(0, max));
+      }
       return NextResponse.json(
         {
           error:
@@ -250,7 +273,12 @@ export async function GET(request: Request) {
 
     return NextResponse.json(logs);
   } catch (error: unknown) {
-    if (localLogs.length) return NextResponse.json(localLogs.slice(0, max));
+    if (localLogs.length) {
+      return NextResponse.json([
+        auditWarning("Keycloak audit events are unavailable; showing local logs only."),
+        ...localLogs,
+      ].slice(0, max));
+    }
     return NextResponse.json(
       {
         error:

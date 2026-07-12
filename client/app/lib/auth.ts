@@ -8,9 +8,12 @@ import { verifyPasswordWithKeycloak } from "./keycloak-password";
 import {
   ensureSsoUser,
   findUserByUsername,
+  getUserRealmRoles,
   getUserOnboardingStatus,
   hasAppMfaConfigured,
+  readAttributeValue,
 } from "./keycloak-users";
+import { keycloakAdminFetch } from "./keycloak";
 
 type AccessTokenClaims = {
   sub?: string;
@@ -28,6 +31,7 @@ type CredentialUser = {
   refreshToken?: string;
   idToken?: string;
   roles?: string[];
+  sessionVersion?: string;
 };
 
 type SsoUser = {
@@ -36,6 +40,7 @@ type SsoUser = {
   email?: string;
   needsUsername?: boolean;
   roles: string[];
+  sessionVersion?: string;
 };
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -135,6 +140,7 @@ async function loginWithKeycloakPassword(
     accessToken: tokenData.access_token,
     refreshToken: tokenData.refresh_token,
     idToken: tokenData.id_token,
+    sessionVersion: readAttributeValue(user.attributes, "sessionVersion") || "",
     roles: claims.realm_access?.roles ?? [],
   };
 }
@@ -224,6 +230,8 @@ export const authOptions: AuthOptions = {
         userId?: string;
         needsUsername?: boolean;
         roles?: string[];
+        sessionVersion?: string;
+        accessRevoked?: boolean;
       };
 
       if (trigger === "update" && session?.needsUsername === false) {
@@ -237,6 +245,7 @@ export const authOptions: AuthOptions = {
         mutableToken.accessToken = credentialUser.accessToken;
         mutableToken.idToken = credentialUser.idToken;
         mutableToken.refreshToken = credentialUser.refreshToken;
+        mutableToken.sessionVersion = credentialUser.sessionVersion || "";
         mutableToken.roles =
           credentialUser.roles ?? readAccessTokenRoles(credentialUser.accessToken);
       } else if (account?.access_token) {
@@ -254,7 +263,29 @@ export const authOptions: AuthOptions = {
 
           mutableToken.userId = ssoUser.id;
           mutableToken.needsUsername = ssoUser.needsUsername === true;
+          mutableToken.sessionVersion = ssoUser.sessionVersion || "";
           mutableToken.roles = ssoUser.roles;
+        }
+      } else if (mutableToken.userId) {
+        const userResponse = await keycloakAdminFetch(
+          `/users/${encodeURIComponent(mutableToken.userId)}`,
+        );
+        if (!userResponse.ok) throw new Error("Unable to validate application session");
+
+        const currentUser = await userResponse.json();
+        const currentSessionVersion =
+          readAttributeValue(currentUser.attributes, "sessionVersion") || "";
+        if (
+          currentUser.enabled === false ||
+          currentSessionVersion !== (mutableToken.sessionVersion || "")
+        ) {
+          mutableToken.userId = undefined;
+          mutableToken.roles = [];
+          mutableToken.accessRevoked = true;
+        } else {
+          const currentRoles = await getUserRealmRoles(mutableToken.userId);
+          mutableToken.roles = currentRoles.map((role: { name?: string }) => role.name).filter(Boolean) as string[];
+          mutableToken.accessRevoked = false;
         }
       }
 
@@ -265,6 +296,7 @@ export const authOptions: AuthOptions = {
         userId?: string;
         needsUsername?: boolean;
         roles?: string[];
+        accessRevoked?: boolean;
       };
 
       return {
@@ -272,6 +304,7 @@ export const authOptions: AuthOptions = {
         userId: typedToken.userId,
         needsUsername: typedToken.needsUsername === true,
         roles: typedToken.roles ?? [],
+        accessRevoked: typedToken.accessRevoked === true,
       };
     },
     async redirect({ url, baseUrl }) {

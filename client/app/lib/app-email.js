@@ -7,6 +7,10 @@ import {
   ensureAppUserProfileAttributes,
   findUserByUsernameOrEmail,
 } from "./keycloak-users";
+import {
+  passwordResetOtpHash,
+  passwordResetOtpMatches,
+} from "./password-reset-code.mjs";
 
 function hashValue(value) {
   const pepper = process.env.APP_EMAIL_OTP_PEPPER || process.env.NEXTAUTH_SECRET;
@@ -434,6 +438,83 @@ export async function sendEmailVerification(user) {
   };
 }
 
+export async function sendPasswordResetOtp(user) {
+  if (!user?.id || !user?.email) throw new Error("User email is required");
+
+  await ensureAppUserProfileAttributes();
+
+  const otp = generateEmailOtp();
+  const expiresAt = new Date(
+    Date.now() + Number(process.env.EMAIL_VERIFICATION_TOKEN_MINUTES || 10) * 60_000,
+  ).toISOString();
+  const attributes = {
+    ...(user.attributes || {}),
+    passwordResetOtpHash: [passwordResetOtpHash(user.id, otp)],
+    passwordResetOtpExpiresAt: [expiresAt],
+  };
+  const updateResponse = await keycloakAdminFetch(
+    `/users/${encodeURIComponent(user.id)}`,
+    { method: "PUT", body: JSON.stringify({ ...user, attributes }) },
+  );
+
+  if (!updateResponse.ok) {
+    throw new Error((await updateResponse.text()) || "Failed to store password reset code");
+  }
+
+  const safeName = escapeHtml(user.firstName || user.username || "there");
+  const safeOtp = escapeHtml(otp);
+  const safeExpiry = escapeHtml(formatExpiry(expiresAt));
+  return sendSmtpMail({
+    to: user.email,
+    subject: "Your IAM Platform password reset code",
+    text: [
+      `Hello ${user.firstName || user.username || "user"},`,
+      "",
+      "Use this code to reset your IAM Platform password:",
+      otp,
+      "",
+      `This code expires at ${expiresAt}.`,
+      "If you did not request this reset, ignore this email.",
+    ].join("\n"),
+    html: `<p>Hello ${safeName},</p><p>Use this code to reset your IAM Platform password:</p><p><strong>${safeOtp}</strong></p><p>This code expires at ${safeExpiry}.</p><p>If you did not request this reset, ignore this email.</p>`,
+  });
+}
+
+export async function verifyPasswordResetOtp(identifier, otp) {
+  const cleanIdentifier = String(identifier || "").trim();
+  const cleanOtp = String(otp || "").replace(/\D/g, "");
+  if (!cleanIdentifier || !/^\d{6}$/.test(cleanOtp)) {
+    throw new Error("Invalid password reset code");
+  }
+
+  const user = await findUserByUsernameOrEmail(cleanIdentifier);
+  if (!user?.id) throw new Error("Invalid password reset code");
+
+  const savedHash = Array.isArray(user.attributes?.passwordResetOtpHash)
+    ? user.attributes.passwordResetOtpHash[0]
+    : user.attributes?.passwordResetOtpHash;
+  const expiresAt = Array.isArray(user.attributes?.passwordResetOtpExpiresAt)
+    ? user.attributes.passwordResetOtpExpiresAt[0]
+    : user.attributes?.passwordResetOtpExpiresAt;
+
+  if (!passwordResetOtpMatches(user.id, cleanOtp, savedHash, expiresAt)) {
+    throw new Error("Invalid or expired password reset code");
+  }
+
+  const attributes = { ...(user.attributes || {}) };
+  delete attributes.passwordResetOtpHash;
+  delete attributes.passwordResetOtpExpiresAt;
+  const updateResponse = await keycloakAdminFetch(
+    `/users/${encodeURIComponent(user.id)}`,
+    { method: "PUT", body: JSON.stringify({ ...user, attributes }) },
+  );
+  if (!updateResponse.ok) {
+    throw new Error((await updateResponse.text()) || "Failed to consume password reset code");
+  }
+
+  return { userId: user.id, enabled: user.enabled };
+}
+
 async function markEmailVerified(user) {
   const attributes = {
     ...(user.attributes || {}),
@@ -468,10 +549,9 @@ async function markEmailVerified(user) {
  *   identifier?: unknown;
  *   otp?: unknown;
  *   token?: unknown;
- *   forceCheck?: boolean;
  * }} input
  */
-export async function verifyEmailOtp({ username, email, identifier, otp, token, forceCheck = false }) {
+export async function verifyEmailOtp({ username, email, identifier, otp, token }) {
   const cleanIdentifier = String(identifier || username || email || "").trim();
   const cleanOtp = String(otp || "").replace(/\D/g, "");
   const cleanToken = String(token || "").trim();
@@ -484,26 +564,6 @@ export async function verifyEmailOtp({ username, email, identifier, otp, token, 
 
   if (!user?.id) {
     throw new Error("Invalid email verification code");
-  }
-
-  if (!forceCheck && user.emailVerified === true) {
-    const requiredActions = removeAppManagedRequiredActions(user.requiredActions);
-
-    if ((user.requiredActions || []).length !== requiredActions.length) {
-      await keycloakAdminFetch(`/users/${encodeURIComponent(user.id)}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          ...user,
-          requiredActions,
-          attributes: {
-            ...(user.attributes || {}),
-            emailVerificationStatus: ["VERIFIED"],
-          },
-        }),
-      });
-    }
-
-    return { username: user.username, email: user.email, userId: user.id, enabled: user.enabled, alreadyVerified: true };
   }
 
   const savedOtpHash = Array.isArray(user.attributes?.emailVerificationOtpHash)
@@ -530,5 +590,5 @@ export async function verifyEmailOtp({ username, email, identifier, otp, token, 
 
   await markEmailVerified(user);
 
-  return { username: user.username, email: user.email, userId: user.id, enabled: user.enabled, alreadyVerified: false };
+  return { alreadyVerified: user.emailVerified === true };
 }

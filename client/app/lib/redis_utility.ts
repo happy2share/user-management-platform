@@ -15,6 +15,7 @@ type RedisCommandResult = string | number | null | RedisCommandResult[];
 
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 const FAIL_CLOSED = process.env.REDIS_RATE_LIMIT_FAIL_CLOSED === "true";
+const TRUST_PROXY = process.env.TRUST_PROXY === "true";
 const KEY_PREFIX = process.env.REDIS_RATE_LIMIT_PREFIX || "iam:rate";
 
 const memoryStore = new Map<string, { count: number; resetAt: number }>();
@@ -123,6 +124,8 @@ function sendRedisCommand(
 }
 
 function clientIp(req: Request) {
+  if (!TRUST_PROXY) return "unknown";
+
   const forwardedFor = req.headers.get("x-forwarded-for");
   if (forwardedFor) return forwardedFor.split(",")[0]?.trim() || "unknown";
 
@@ -131,6 +134,12 @@ function clientIp(req: Request) {
     req.headers.get("cf-connecting-ip") ||
     "unknown"
   );
+}
+
+export function normalizeRateLimitEndpoint(endpoint: string) {
+  return endpoint
+    .replace(/^\/api\/(users|clients|groups|sessions)\/[^/]+/, "/api/$1/:id")
+    .replace(/^\/api\/roles\/[^/]+/, "/api/roles/:name");
 }
 
 function sanitizeKeyPart(value: string) {
@@ -178,7 +187,8 @@ export async function rateLimit(
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const userId = String(token?.userId || token?.sub || "");
   const actor = userId ? `user:${userId}` : `ip:${clientIp(req)}`;
-  const key = [KEY_PREFIX, method.toUpperCase(), endpoint, actor]
+  const normalizedEndpoint = normalizeRateLimitEndpoint(endpoint);
+  const key = [KEY_PREFIX, method.toUpperCase(), normalizedEndpoint, actor]
     .map(sanitizeKeyPart)
     .join(":");
 
@@ -207,7 +217,11 @@ export async function rateLimit(
       error,
     });
 
-    if (FAIL_CLOSED) {
+    if (
+      FAIL_CLOSED ||
+      (process.env.NODE_ENV === "production" &&
+        (endpoint.startsWith("/api/auth/") || endpoint.startsWith("/api/public/")))
+    ) {
       return NextResponse.json(
         { error: "Rate limiter is unavailable. Please try again later." },
         { status: 503 },

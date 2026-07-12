@@ -175,6 +175,7 @@ async function ensureRealm(token) {
       resetPasswordAllowed: true,
       verifyEmail: false,
       rememberMe: true,
+      editUsernameAllowed: true,
     }),
   });
   void logInfo(`Realm created: ${REALM}`);

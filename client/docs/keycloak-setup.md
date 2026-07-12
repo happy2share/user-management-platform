@@ -177,17 +177,21 @@ The application stores onboarding state in Keycloak user attributes:
 - `emailVerificationStatus`
 - `emailVerificationOtpHash`
 - `emailVerificationOtpExpiresAt`
+- `passwordResetOtpHash`
+- `passwordResetOtpExpiresAt`
 - `appMfaConfigured`
 - `appMfaTempSecretEncrypted`
 - `appMfaTempSecretCreatedAt`
 - `appMfaSecretEncrypted`
 - `appMfaConfiguredAt`
+- `sessionVersion`
 - `dashboard`
 - `locale`
 
 If Keycloak User Profile validation is strict, add these attributes under
 **Realm settings > User profile**. The application also attempts to register
-the required attributes through the Admin API.
+the required attributes through the Admin API. App-managed security attributes
+must be editable by administrators only; users only need view permission.
 
 ## Email Verification and MFA
 
