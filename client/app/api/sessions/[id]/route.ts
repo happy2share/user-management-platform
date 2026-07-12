@@ -2,6 +2,7 @@ import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../../lib/api-auth";
 import { keycloakAdminFetch } from "../../../lib/keycloak";
 import { getKeycloakError } from "../../../lib/keycloak-users";
+import { invalidateUserSessions } from "../../../lib/activation";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -27,16 +28,7 @@ export async function DELETE(req: Request, context: RouteContext) {
     results.push("specific session revoked");
 
     if (userId) {
-      const byUser = await keycloakAdminFetch(
-        `/users/${encodeURIComponent(userId)}/logout`,
-        { method: "POST" },
-      );
-
-      if (!byUser.ok) {
-        const error = await getKeycloakError(byUser, "Failed to fully logout user from Keycloak");
-        return NextResponse.json({ error }, { status: byUser.status });
-      }
-
+      await invalidateUserSessions(userId);
       results.push("all user sessions revoked");
     }
 

@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { logError } from "@/app/lib/file-logger.mjs";
 import { findUserByUsernameOrEmail } from "../../../lib/keycloak-users";
-import { sendEmailVerification } from "../../../lib/app-email";
+import { sendPasswordResetOtp } from "../../../lib/app-email";
 import { normalizeObjectTextFields } from "../../../i18n/english-normalizer";
 import { rateLimitIdentifier } from "../../../lib/redis_utility";
 
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: GENERIC_SUCCESS_MESSAGE });
     }
 
-    await sendEmailVerification(user);
+    await sendPasswordResetOtp(user);
 
     return NextResponse.json({ message: GENERIC_SUCCESS_MESSAGE });
   } catch (error: unknown) {
@@ -57,11 +57,6 @@ export async function POST(request: Request) {
       operation: "password.forgot",
       error,
     });
-    return NextResponse.json(
-      {
-        error: "Failed to send password reset code",
-      },
-      { status: 500 },
-    );
+    return NextResponse.json({ message: GENERIC_SUCCESS_MESSAGE });
   }
 }

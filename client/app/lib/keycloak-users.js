@@ -16,6 +16,8 @@ const APP_USER_PROFILE_ATTRIBUTES = [
   "emailVerificationOtpHash",
   "emailVerificationLinkHash",
   "emailVerificationOtpExpiresAt",
+  "passwordResetOtpHash",
+  "passwordResetOtpExpiresAt",
   "appMfaConfigured",
   "appMfaTempSecretEncrypted",
   "appMfaTempSecretCreatedAt",
@@ -26,6 +28,8 @@ const APP_USER_PROFILE_ATTRIBUTES = [
   "emailVerificationExpiresAt",
   "termsAcceptedAt",
   "passwordUpdatedAt",
+  "sessionVersion",
+  "locale",
   "preferredLocale",
   "identityProvider",
   "ssoUsernameRequired",
@@ -46,7 +50,7 @@ function buildAppUserProfileAttribute(name) {
     displayName: name,
     permissions: {
       view: ["admin", "user"],
-      edit: ["admin", "user"],
+      edit: ["admin"],
     },
     multivalued: false,
   };
@@ -55,12 +59,14 @@ function buildAppUserProfileAttribute(name) {
 function normalizeAppUserProfileAttribute(attribute) {
   if (!APP_WRITABLE_PROFILE_ATTRIBUTES.includes(attribute.name)) return attribute;
 
+  const appManaged = APP_USER_PROFILE_ATTRIBUTES.includes(attribute.name);
+
   return {
     ...attribute,
     permissions: {
       ...(attribute.permissions || {}),
       view: ["admin", "user"],
-      edit: ["admin", "user"],
+      edit: appManaged ? ["admin"] : ["admin", "user"],
     },
     multivalued: false,
   };
@@ -368,6 +374,7 @@ export async function ensureSsoUser({ email, name, provider = "google" }) {
     name: user.firstName || user.username || name || normalizedEmail,
     email: user.email || normalizedEmail,
     needsUsername: readAttributeValue(user.attributes, "ssoUsernameRequired") === "true",
+    sessionVersion: readAttributeValue(user.attributes, "sessionVersion") || "",
     roles: roles.map((role) => role.name),
   };
 }

@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { logError } from "@/app/lib/file-logger.mjs";
-import { verifyEmailOtp } from "../../../lib/app-email";
+import { verifyPasswordResetOtp } from "../../../lib/app-email";
 import { resetUserPassword } from "../../../lib/activation";
 import { normalizeObjectTextFields } from "../../../i18n/english-normalizer";
 import {
@@ -14,9 +14,7 @@ const MIN_PASSWORD_LENGTH = 8;
 function isOtpValidationError(error: unknown) {
   if (!(error instanceof Error)) return false;
   return (
-    error.message.includes("Invalid email verification code") ||
-    error.message.includes("Email verification code expired") ||
-    error.message.includes("6-digit email OTP")
+    error.message.includes("password reset code")
   );
 }
 
@@ -76,12 +74,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify the OTP strictly (forceCheck: true ensures no bypass even if emailVerified is true)
-    const { userId, enabled } = await verifyEmailOtp({
-      identifier,
-      otp,
-      forceCheck: true,
-    });
+    const { userId, enabled } = await verifyPasswordResetOtp(identifier, otp);
 
     if (enabled === false) {
       return NextResponse.json(

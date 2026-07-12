@@ -2,6 +2,7 @@ import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../lib/api-auth";
 import { keycloakAdminFetch, keycloakAdminFetchAll } from "../../lib/keycloak";
 import { getKeycloakError } from "../../lib/keycloak-users";
+import { invalidateUserSessions } from "../../lib/activation";
 
 type KeycloakUser = {
   id: string;
@@ -92,12 +93,9 @@ export async function DELETE() {
     const failures: string[] = [];
 
     for (const user of users) {
-      const response = await keycloakAdminFetch(
-        `/users/${encodeURIComponent(user.id)}/logout`,
-        { method: "POST" },
-      );
-
-      if (!response.ok) {
+      try {
+        await invalidateUserSessions(user.id);
+      } catch {
         failures.push(user.username || user.id);
       }
     }

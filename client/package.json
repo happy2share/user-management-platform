@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:security": "node scripts/security-smoke.mjs",
     "import:realm": "node scripts/import-realm.mjs",
     "provision:car-service": "node scripts/provision-car-servicecenter.mjs",
     "configure:car-permissions": "node scripts/configure-car-servicecenter-permissions.mjs"

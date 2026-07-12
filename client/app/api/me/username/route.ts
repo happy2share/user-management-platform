@@ -28,28 +28,6 @@ function isValidUsername(username: string) {
     !username.endsWith(".");
 }
 
-async function ensureUsernameEditingAllowed() {
-  const realmRes = await keycloakAdminFetch("");
-  if (!realmRes.ok) {
-    throw new Error(await getKeycloakError(realmRes, "Failed to load realm settings"));
-  }
-
-  const realm = await realmRes.json();
-  if (realm.editUsernameAllowed === true) return;
-
-  const updateRes = await keycloakAdminFetch("", {
-    method: "PUT",
-    body: JSON.stringify({
-      ...realm,
-      editUsernameAllowed: true,
-    }),
-  });
-
-  if (!updateRes.ok) {
-    throw new Error(await getKeycloakError(updateRes, "Failed to allow username editing"));
-  }
-}
-
 export async function PUT(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -94,7 +72,6 @@ export async function PUT(req: Request) {
     }
 
     await ensureAppUserProfileAttributes({ force: true });
-    await ensureUsernameEditingAllowed();
 
     const userRes = await keycloakAdminFetch(`/users/${encodeURIComponent(userId)}`);
     if (!userRes.ok) {
