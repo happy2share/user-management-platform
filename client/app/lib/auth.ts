@@ -145,7 +145,7 @@ async function loginWithKeycloakPassword(
   const claims = decodeJwt<AccessTokenClaims>(tokenData.access_token) ?? {};
 
   return {
-    id: claims.sub || claims.preferred_username || username,
+    id: user.id,
     name: claims.name || claims.preferred_username || username,
     email: claims.email || "",
     accessToken: tokenData.access_token,

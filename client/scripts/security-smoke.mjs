@@ -34,6 +34,7 @@ const rootGitignore = await source("../../.gitignore");
 assert.match(landingAuth, /onClick=\{\(\) => handleMfaSetupStart\(\)\}/);
 assert.match(mfaSetupRoute, /qrImageUrl: await buildQrImageUrl\(otpauthUri\)/);
 assert.match(auth, /effective: true/);
+assert.match(auth, /id: user\.id/);
 assert.match(redisUtility, /results\.length < expectedResponses/);
 assert.match(redisUtility, /!userId && ip === "unknown"/);
 assert.doesNotMatch(passwordCheckRoute, /nativeMfaConfigured/);
