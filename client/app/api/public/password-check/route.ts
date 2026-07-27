@@ -1,36 +1,17 @@
 export const runtime = "nodejs";
 import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { logError } from "@/app/lib/file-logger.mjs";
-import { keycloakAdminFetch } from "../../../lib/keycloak";
 import {
   findUserByUsername,
   getUserOnboardingStatus,
   hasAppMfaConfigured,
 } from "../../../lib/keycloak-users";
 import { verifyPasswordWithKeycloak } from "../../../lib/keycloak-password";
+import {
+  clearRateLimitIdentifier,
+  rateLimitIdentifier,
+} from "../../../lib/redis_utility";
 import { normalizeObjectTextFields } from "../../../i18n/english-normalizer";
-
-type KeycloakCredential = {
-  type?: string;
-};
-
-async function readNativeKeycloakMfaConfigured(userId: string) {
-  const response = await keycloakAdminFetch(
-    `/users/${encodeURIComponent(userId)}/credentials`,
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to read Keycloak MFA credentials (${response.status})`);
-  }
-
-  const credentials = await response.json();
-
-  return Array.isArray(credentials)
-    ? credentials.some(
-        (credential: KeycloakCredential) => credential.type === "otp",
-      )
-    : false;
-}
 
 export async function POST(req: Request) {
   try {
@@ -43,6 +24,19 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { passwordValid: false, error: "Username and password are required" },
         { status: 400 },
+      );
+    }
+
+    const rateLimitScope = "password-check";
+    const rateLimitKey = username.toLowerCase();
+    if (await rateLimitIdentifier(rateLimitScope, rateLimitKey, 5, 300)) {
+      return NextResponse.json(
+        {
+          passwordValid: false,
+          status: "RATE_LIMITED",
+          error: "Too many login attempts. Try again later.",
+        },
+        { status: 429 },
       );
     }
 
@@ -68,6 +62,7 @@ export async function POST(req: Request) {
         { status: passwordCheck.status >= 500 ? 500 : 401 },
       );
     }
+    await clearRateLimitIdentifier(rateLimitScope, rateLimitKey);
 
     const user = await findUserByUsername(username);
 
@@ -112,14 +107,12 @@ export async function POST(req: Request) {
     }
 
     const appMfaConfigured = hasAppMfaConfigured(user);
-    const nativeMfaConfigured = await readNativeKeycloakMfaConfigured(user.id);
 
     return NextResponse.json({
       passwordValid: true,
       status: "READY",
-      mfaConfigured: appMfaConfigured || nativeMfaConfigured,
+      mfaConfigured: appMfaConfigured,
       appMfaConfigured,
-      nativeMfaConfigured,
     });
   } catch (error: unknown) {
     void logError("Failed to verify password", {

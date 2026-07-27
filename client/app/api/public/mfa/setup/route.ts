@@ -5,12 +5,17 @@ import { findUserByUsername } from "../../../../lib/keycloak-users";
 import { verifyPasswordWithKeycloak } from "../../../../lib/keycloak-password";
 import {
   buildOtpAuthUri,
+  buildQrImageUrl,
   encryptText,
   isAppMfaConfigured,
   randomBase32Secret,
   updateUserAttributes,
 } from "../../../../lib/app-mfa";
 import { normalizeObjectTextFields } from "../../../../i18n/english-normalizer";
+import {
+  clearRateLimitIdentifier,
+  rateLimitIdentifier,
+} from "../../../../lib/redis_utility";
 
 export async function POST(req: Request) {
   try {
@@ -26,6 +31,15 @@ export async function POST(req: Request) {
       );
     }
 
+    const rateLimitScope = "mfa-setup";
+    const rateLimitKey = username.toLowerCase();
+    if (await rateLimitIdentifier(rateLimitScope, rateLimitKey, 5, 300)) {
+      return NextResponse.json(
+        { error: "Too many MFA setup attempts. Try again later." },
+        { status: 429 },
+      );
+    }
+
     const passwordCheck = await verifyPasswordWithKeycloak(username, password);
     if (!passwordCheck.ok) {
       return NextResponse.json(
@@ -33,6 +47,7 @@ export async function POST(req: Request) {
         { status: 401 },
       );
     }
+    await clearRateLimitIdentifier(rateLimitScope, rateLimitKey);
 
     const user = await findUserByUsername(username);
     if (!user?.id) {
@@ -69,6 +84,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       otpauthUri,
+      qrImageUrl: await buildQrImageUrl(otpauthUri),
       manualKey: secret,
       message:
         "Scan the QR code and enter the OTP from your authenticator app.",

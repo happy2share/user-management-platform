@@ -379,9 +379,10 @@ export async function ensureSsoUser({ email, name, provider = "google" }) {
   };
 }
 
-export async function getUserRealmRoles(userId) {
+export async function getUserRealmRoles(userId, { effective = false } = {}) {
+  const suffix = effective ? "/composite" : "";
   const response = await keycloakAdminFetch(
-    `/users/${encodeURIComponent(userId)}/role-mappings/realm`,
+    `/users/${encodeURIComponent(userId)}/role-mappings/realm${suffix}`,
   );
 
   if (!response.ok) {

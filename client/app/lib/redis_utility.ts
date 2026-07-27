@@ -109,7 +109,9 @@ function sendRedisCommand(
       chunks.push(chunk);
       try {
         const results = parseRedisResponses(Buffer.concat(chunks));
-        settle(password ? (results.at(-1) ?? null) : (results[0] ?? null));
+        const expectedResponses = password ? 2 : 1;
+        if (results.length < expectedResponses) return;
+        settle(results.at(-1) ?? null);
       } catch {
         // Wait for the rest of the Redis response.
       }
@@ -186,7 +188,9 @@ export async function rateLimit(
 
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const userId = String(token?.userId || token?.sub || "");
-  const actor = userId ? `user:${userId}` : `ip:${clientIp(req)}`;
+  const ip = clientIp(req);
+  if (!userId && ip === "unknown") return null;
+  const actor = userId ? `user:${userId}` : `ip:${ip}`;
   const normalizedEndpoint = normalizeRateLimitEndpoint(endpoint);
   const key = [KEY_PREFIX, method.toUpperCase(), normalizedEndpoint, actor]
     .map(sanitizeKeyPart)

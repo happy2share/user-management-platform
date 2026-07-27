@@ -10,6 +10,10 @@ import {
   verifyTotp,
 } from "../../../../lib/app-mfa";
 import { normalizeObjectTextFields } from "../../../../i18n/english-normalizer";
+import {
+  clearRateLimitIdentifier,
+  rateLimitIdentifier,
+} from "../../../../lib/redis_utility";
 
 export async function POST(req: Request) {
   try {
@@ -23,6 +27,15 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Username, password and OTP are required" },
         { status: 400 },
+      );
+    }
+
+    const rateLimitScope = "mfa-verify";
+    const rateLimitKey = username.toLowerCase();
+    if (await rateLimitIdentifier(rateLimitScope, rateLimitKey, 5, 300)) {
+      return NextResponse.json(
+        { error: "Too many MFA verification attempts. Try again later." },
+        { status: 429 },
       );
     }
 
@@ -77,6 +90,7 @@ export async function POST(req: Request) {
     if (!verifyTotp(secret, otp)) {
       return NextResponse.json({ error: "Invalid OTP" }, { status: 401 });
     }
+    await clearRateLimitIdentifier(rateLimitScope, rateLimitKey);
 
     await updateUserAttributes({
       ...user,

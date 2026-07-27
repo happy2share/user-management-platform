@@ -789,7 +789,7 @@ export default function LandingAuth() {
                   className="auth-submit"
                   disabled={busy}
                   type="button"
-                  onClick={handleMfaSetupStart}
+                  onClick={() => handleMfaSetupStart()}
                 >
                   {busy ? t("auth.preparingMfa") : t("auth.generateMfaQr")}
                 </button>

@@ -14,6 +14,10 @@ import {
   readAttributeValue,
 } from "./keycloak-users";
 import { keycloakAdminFetch } from "./keycloak";
+import {
+  clearRateLimitIdentifier,
+  rateLimitIdentifier,
+} from "./redis_utility";
 
 type AccessTokenClaims = {
   sub?: string;
@@ -69,6 +73,12 @@ async function loginWithKeycloakPassword(
   password: string,
   totp?: string,
 ) {
+  const rateLimitScope = "credentials-login";
+  const rateLimitKey = username.trim().toLowerCase();
+  if (await rateLimitIdentifier(rateLimitScope, rateLimitKey, 5, 300)) {
+    throw new Error("Too many login attempts. Try again later.");
+  }
+
   const passwordCheck = await verifyPasswordWithKeycloak(username, password);
   if (!passwordCheck.ok) {
     throw new Error("Invalid username or password");
@@ -130,6 +140,7 @@ async function loginWithKeycloakPassword(
         "Invalid Keycloak username, password, or OTP",
     );
   }
+  await clearRateLimitIdentifier(rateLimitScope, rateLimitKey);
 
   const claims = decodeJwt<AccessTokenClaims>(tokenData.access_token) ?? {};
 
@@ -283,7 +294,9 @@ export const authOptions: AuthOptions = {
           mutableToken.roles = [];
           mutableToken.accessRevoked = true;
         } else {
-          const currentRoles = await getUserRealmRoles(mutableToken.userId);
+          const currentRoles = await getUserRealmRoles(mutableToken.userId, {
+            effective: true,
+          });
           mutableToken.roles = currentRoles.map((role: { name?: string }) => role.name).filter(Boolean) as string[];
           mutableToken.accessRevoked = false;
         }

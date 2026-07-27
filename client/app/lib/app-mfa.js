@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import QRCode from "qrcode";
 
 import { keycloakAdminFetch } from "./keycloak";
 import { ensureAppUserProfileAttributes } from "./keycloak-users";
@@ -157,6 +158,10 @@ export function buildOtpAuthUri({ username, issuer = "IAM Platform", secret }) {
   });
 
   return `otpauth://totp/${encodeURIComponent(label)}?${params.toString()}`;
+}
+
+export function buildQrImageUrl(otpauthUri) {
+  return QRCode.toDataURL(otpauthUri, { width: 220, margin: 1 });
 }
 
 export async function updateUserAttributes(user, updates) {

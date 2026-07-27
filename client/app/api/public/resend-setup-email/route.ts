@@ -6,6 +6,7 @@ import {
 } from "../../../lib/keycloak-users";
 import { sendEmailVerification } from "../../../lib/app-email";
 import { normalizeObjectTextFields } from "../../../i18n/english-normalizer";
+import { rateLimitIdentifier } from "../../../lib/redis_utility";
 
 export async function POST(req: Request) {
   try {
@@ -17,6 +18,19 @@ export async function POST(req: Request) {
         { error: "Username is required" },
         { status: 400 },
       );
+    }
+
+    if (
+      await rateLimitIdentifier(
+        "resend-setup-email",
+        username.toLowerCase(),
+        3,
+        300,
+      )
+    ) {
+      return NextResponse.json({
+        message: "If setup is required, an email will be sent.",
+      });
     }
 
     const user = await findUserByUsername(username);
