@@ -24,6 +24,20 @@ export async function POST(req: Request) {
       );
     }
 
+    if (
+      await rateLimitIdentifier(
+        "email-send-lookup",
+        identifier.toLowerCase(),
+        5,
+        300,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Too many verification requests. Try again later." },
+        { status: 429 },
+      );
+    }
+
     const user = await findUserByUsernameOrEmail(identifier);
 
     if (!user?.id) {

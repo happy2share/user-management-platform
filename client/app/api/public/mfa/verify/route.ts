@@ -101,8 +101,8 @@ export async function POST(req: Request) {
       appMfaSecretEncrypted: encryptedTempSecret,
       appMfaConfigured: "true",
       appMfaConfiguredAt: new Date().toISOString(),
-      appMfaTempSecretEncrypted: "",
-      appMfaTempSecretCreatedAt: "",
+      appMfaTempSecretEncrypted: null,
+      appMfaTempSecretCreatedAt: null,
       onboardingStatus: "COMPLETED",
     });
 

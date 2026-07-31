@@ -18,6 +18,12 @@ checking, email verification, MFA, and admin APIs can work:
 
 ## Automated Setup
 
+The included `realm.json` and its fixed sample client secrets are for local
+development only. For any non-local Keycloak target, set
+`KEYCLOAK_CLIENT_SECRET`, `KEYCLOAK_ADMIN_CLIENT_SECRET`,
+`KEYCLOAK_PASSWORD_CHECK_CLIENT_SECRET`, and `CAR_SERVICE_DEFAULT_PASSWORD`
+explicitly; the provisioning and import scripts reject missing secrets.
+
 Copy `.env.example` to `.env.local`, set the bootstrap administrator password,
 then run:
 

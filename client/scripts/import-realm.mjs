@@ -7,6 +7,11 @@ import { logError, logInfo } from "../app/lib/file-logger.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
+const LOCAL_KEYCLOAK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+
+function isLocalKeycloakUrl(value) {
+  return LOCAL_KEYCLOAK_HOSTS.has(new URL(value).hostname);
+}
 
 function configFromEnv(env = process.env) {
   return {
@@ -109,7 +114,10 @@ async function promptForConfig(config) {
     nextConfig.frontendClientSecret = await promptWithDefault(
       rl,
       "Frontend client secret",
-      nextConfig.frontendClientSecret || "iam-frontend-client-secret",
+      nextConfig.frontendClientSecret ||
+        (isLocalKeycloakUrl(nextConfig.keycloakBaseUrl)
+          ? "iam-frontend-client-secret"
+          : ""),
       { required: true },
     );
     nextConfig.adminClientId = await promptWithDefault(
@@ -121,7 +129,10 @@ async function promptForConfig(config) {
     nextConfig.adminClientSecret = await promptWithDefault(
       rl,
       "Admin API client secret",
-      nextConfig.adminClientSecret || "iam-admin-api-client-secret",
+      nextConfig.adminClientSecret ||
+        (isLocalKeycloakUrl(nextConfig.keycloakBaseUrl)
+          ? "iam-admin-api-client-secret"
+          : ""),
       { required: true },
     );
     nextConfig.passwordCheckClientId = await promptWithDefault(
@@ -133,7 +144,10 @@ async function promptForConfig(config) {
     nextConfig.passwordCheckClientSecret = await promptWithDefault(
       rl,
       "Password-check client secret",
-      nextConfig.passwordCheckClientSecret || "iam-password-check-client-secret",
+      nextConfig.passwordCheckClientSecret ||
+        (isLocalKeycloakUrl(nextConfig.keycloakBaseUrl)
+          ? "iam-password-check-client-secret"
+          : ""),
       { required: true },
     );
     nextConfig.staffGroupName = await promptWithDefault(
@@ -310,6 +324,16 @@ async function request(url, options = {}) {
 export async function importRealm(config = configFromEnv()) {
   if (!config.bootstrapPassword) {
     throw new Error("Set KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD before running");
+  }
+
+  if (!isLocalKeycloakUrl(config.keycloakBaseUrl)) {
+    for (const [name, value] of [
+      ["KEYCLOAK_CLIENT_SECRET", config.frontendClientSecret],
+      ["KEYCLOAK_ADMIN_CLIENT_SECRET", config.adminClientSecret],
+      ["KEYCLOAK_PASSWORD_CHECK_CLIENT_SECRET", config.passwordCheckClientSecret],
+    ]) {
+      if (!value) throw new Error(`${name} is required for non-local realm import`);
+    }
   }
 
   const realmPath = path.resolve(

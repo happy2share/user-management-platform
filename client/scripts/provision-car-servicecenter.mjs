@@ -25,6 +25,17 @@ function forceLoadLocalEnv() {
 forceLoadLocalEnv();
 
 const KEYCLOAK_BASE_URL = process.env.KEYCLOAK_BASE_URL || "http://localhost:8080";
+const LOCAL_KEYCLOAK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+const IS_LOCAL_KEYCLOAK = LOCAL_KEYCLOAK_HOSTS.has(
+  new URL(KEYCLOAK_BASE_URL).hostname,
+);
+
+function provisioningValue(name, localDefault) {
+  if (process.env[name]) return process.env[name];
+  if (IS_LOCAL_KEYCLOAK) return localDefault;
+  throw new Error(`${name} is required for non-local Keycloak provisioning`);
+}
+
 const BOOTSTRAP_REALM = process.env.KEYCLOAK_BOOTSTRAP_REALM || "master";
 const BOOTSTRAP_CLIENT_ID = process.env.KEYCLOAK_BOOTSTRAP_CLIENT_ID || "admin-cli";
 const BOOTSTRAP_USERNAME = process.env.KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME;
@@ -32,18 +43,26 @@ const BOOTSTRAP_PASSWORD = process.env.KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD;
 
 const REALM = process.env.CAR_SERVICE_REALM || "Car_ServiceCenter";
 const FRONTEND_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || "iam-frontend";
-const FRONTEND_CLIENT_SECRET =
-  process.env.KEYCLOAK_CLIENT_SECRET || "iam-frontend-client-secret";
+const FRONTEND_CLIENT_SECRET = provisioningValue(
+  "KEYCLOAK_CLIENT_SECRET",
+  "iam-frontend-client-secret",
+);
 const ADMIN_CLIENT_ID = process.env.KEYCLOAK_ADMIN_CLIENT_ID || "iam-admin-api";
-const ADMIN_CLIENT_SECRET =
-  process.env.KEYCLOAK_ADMIN_CLIENT_SECRET || "iam-admin-api-client-secret";
+const ADMIN_CLIENT_SECRET = provisioningValue(
+  "KEYCLOAK_ADMIN_CLIENT_SECRET",
+  "iam-admin-api-client-secret",
+);
 const PASSWORD_CHECK_CLIENT_ID =
   process.env.KEYCLOAK_PASSWORD_CHECK_CLIENT_ID || "iam-password-check";
-const PASSWORD_CHECK_CLIENT_SECRET =
-  process.env.KEYCLOAK_PASSWORD_CHECK_CLIENT_SECRET ||
-  "iam-password-check-client-secret";
+const PASSWORD_CHECK_CLIENT_SECRET = provisioningValue(
+  "KEYCLOAK_PASSWORD_CHECK_CLIENT_SECRET",
+  "iam-password-check-client-secret",
+);
 const APP_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
-const DEFAULT_PASSWORD = process.env.CAR_SERVICE_DEFAULT_PASSWORD || "ChangeMe@123";
+const DEFAULT_PASSWORD = provisioningValue(
+  "CAR_SERVICE_DEFAULT_PASSWORD",
+  "ChangeMe@123",
+);
 
 const roles = [
   { name: "realm-admin", description: "Can access the IAM admin portal" },
