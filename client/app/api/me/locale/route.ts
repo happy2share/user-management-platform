@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-import { NextResponse } from "next/server";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { authOptions } from "../../../lib/auth";
 import { keycloakAdminFetch } from "../../../lib/keycloak";
 import { getKeycloakError, readAttributeValue } from "../../../lib/keycloak-users";
@@ -46,7 +46,7 @@ export async function GET() {
     return NextResponse.json({ locale });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: await getKeycloakError(error, "Failed to load user locale") },
+      { error: error instanceof Error ? error.message : "Failed to load user locale" },
       { status: 500 },
     );
   }
@@ -82,16 +82,14 @@ export async function PUT(request: Request) {
     });
 
     if (!response.ok) {
-      return NextResponse.json(
-        { error: await getKeycloakError(response, "Failed to save user locale") },
-        { status: response.status },
-      );
+      const error = await getKeycloakError(response, "Failed to save user locale");
+      return NextResponse.json({ error }, { status: response.status });
     }
 
     return NextResponse.json({ locale });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: await getKeycloakError(error, "Failed to save user locale") },
+      { error: error instanceof Error ? error.message : "Failed to save user locale" },
       { status: 500 },
     );
   }

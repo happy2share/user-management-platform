@@ -1,8 +1,9 @@
 export const runtime = "nodejs";
-import { NextResponse } from "next/server";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../lib/api-auth";
+import { commonEntryLog } from "../../lib/app-utilities";
 import { keycloakAdminFetch } from "../../lib/keycloak";
-import { normalizeObjectTextFields } from "../../lib/english-normalizer";
+import { normalizeObjectTextFields } from "../../i18n/english-normalizer";
 import {
   getKeycloakError,
   getUserGroups,
@@ -12,31 +13,34 @@ import {
   syncUserGroups,
 } from "../../lib/keycloak-users";
 import { sendEmailVerification } from "../../lib/app-email";
+import { logError } from "../../lib/file-logger.mjs";
 
-export async function GET() {
+export async function GET(req: Request) {
   const unauthorized = await requireRealmAdmin();
   if (unauthorized) return unauthorized;
+  await commonEntryLog(req);
 
   try {
-    const res = await keycloakAdminFetch("/users?max=100");
+    const res = await keycloakAdminFetch("/users?max=1000");
 
     if (!res.ok) {
-      return NextResponse.json(
-        { error: await getKeycloakError(res, "Failed to fetch users") },
-        { status: res.status },
-      );
+      const error = await getKeycloakError(res, "Failed to fetch users");
+      return NextResponse.json({ error }, { status: res.status });
     }
 
     const users = await res.json();
     const usersWithRoles = await Promise.all(
-      users.map(async (user: { id: string; emailVerified?: boolean; requiredActions?: string[]; attributes?: Record<string, string[]> }) => {
+      users.map(async (user: { id: string; enabled?: boolean; emailVerified?: boolean; requiredActions?: string[]; attributes?: Record<string, string[]> }) => {
         const [roles, groups] = await Promise.all([
           getUserRealmRoles(user.id),
           getUserGroups(user.id).catch(() => []),
         ]);
 
+        const enabled = user.enabled !== false;
+
         return {
           ...user,
+          enabled,
           realmRoles: roles.map((role: { name: string }) => role.name),
           groups: groups.map((group: { id: string }) => group.id),
           groupPaths: groups.map((group: { path?: string; name?: string }) => group.path || group.name).filter(Boolean),
@@ -51,7 +55,7 @@ export async function GET() {
     return NextResponse.json(
       {
         error:
-          await getKeycloakError(error, "Failed to fetch users"),
+          error instanceof Error ? error.message : "Failed to fetch users",
       },
       { status: 500 },
     );
@@ -61,6 +65,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const unauthorized = await requireRealmAdmin();
   if (unauthorized) return unauthorized;
+  await commonEntryLog(req);
 
   try {
     const rawBody = await req.json();
@@ -132,10 +137,8 @@ export async function POST(req: Request) {
     });
 
     if (!createRes.ok) {
-      return NextResponse.json(
-        { error: await getKeycloakError(createRes, "Failed to create user") },
-        { status: createRes.status },
-      );
+      const error = await getKeycloakError(createRes, "Failed to create user");
+      return NextResponse.json({ error }, { status: createRes.status });
     }
 
     const location = createRes.headers.get("location");
@@ -179,21 +182,49 @@ export async function POST(req: Request) {
       throw assignmentError;
     }
 
-    const userRes = await keycloakAdminFetch(`/users/${encodeURIComponent(userId)}`);
-    const createdUser = await userRes.json();
-    const verification = await sendEmailVerification(createdUser);
+    let verification: {
+      emailSent?: boolean;
+      verificationPageLink?: string;
+      localOtpCode?: string;
+      warning?: string;
+    } = {
+      emailSent: false,
+      warning: "Email verification could not be sent.",
+    };
+
+    try {
+      const userRes = await keycloakAdminFetch(
+        `/users/${encodeURIComponent(userId)}`,
+      );
+      if (!userRes.ok) {
+        throw new Error(
+          await getKeycloakError(userRes, "Failed to load created user"),
+        );
+      }
+      verification = await sendEmailVerification(await userRes.json());
+    } catch (notificationError) {
+      void logError("User created but verification email failed", {
+        endpoint: "/api/users",
+        method: "POST",
+        operation: "user.create.emailVerification",
+        userId,
+        error: notificationError,
+      });
+    }
 
     return NextResponse.json(
       {
         id: userId,
         message: verification.emailSent
           ? "User created successfully. Email verification OTP sent. User must verify email and set up MFA from the app."
-          : "User created successfully. App SMTP is not configured, so use the local email OTP shown for testing.",
+          : verification.localOtpCode
+            ? "User created successfully. App SMTP is not configured, so use the local email OTP shown for testing."
+            : "User created successfully, but the verification email was not sent. Resend it before the user signs in.",
         emailVerificationSent: verification.emailSent,
         verificationPageLink: verification.verificationPageLink,
         verificationLink: verification.verificationPageLink,
         localOtpCode: verification.localOtpCode,
-        warning: verification.warning,
+        warning: verification.emailSent ? undefined : verification.warning,
       },
       { status: 201 },
     );
@@ -201,7 +232,7 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         error:
-          await getKeycloakError(error, "Failed to create user"),
+          error instanceof Error ? error.message : "Failed to create user",
       },
       { status: 500 },
     );

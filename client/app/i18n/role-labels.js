@@ -19,6 +19,31 @@ const ROLE_LABELS = {
     hi: "एप्लिकेशन उपयोगकर्ता",
     te: "అప్లికేషన్ వినియోగదారు",
   },
+  owner: {
+    en: "Owner",
+    hi: "Owner",
+    te: "Owner",
+  },
+  "service-manager": {
+    en: "Workshop / Service Manager",
+    hi: "Workshop / Service Manager",
+    te: "Workshop / Service Manager",
+  },
+  "senior-technician": {
+    en: "Senior Technician",
+    hi: "Senior Technician",
+    te: "Senior Technician",
+  },
+  technician: {
+    en: "Technician / Mechanic",
+    hi: "Technician / Mechanic",
+    te: "Technician / Mechanic",
+  },
+  "helper-apprentice": {
+    en: "Helper / Apprentice",
+    hi: "Helper / Apprentice",
+    te: "Helper / Apprentice",
+  },
 };
 
 export function getRoleLabel(roleName, language = "en") {
@@ -26,8 +51,4 @@ export function getRoleLabel(roleName, language = "en") {
 
   const labels = ROLE_LABELS[roleName];
   return labels?.[language] || labels?.en || roleName;
-}
-
-export function hasRoleLabel(roleName) {
-  return Boolean(ROLE_LABELS[roleName]);
 }

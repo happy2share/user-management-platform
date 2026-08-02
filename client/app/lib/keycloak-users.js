@@ -1,12 +1,121 @@
 import { keycloakAdminFetch } from "./keycloak";
-import { getKeycloakError } from "./keycloak-error";
+import { formatKeycloakError, getKeycloakError } from "./keycloak-error";
 
-export { formatKeycloakError, getKeycloakError } from "./keycloak-error";
+// Re-export so existing importers of keycloak-users continue to work.
+export { formatKeycloakError, getKeycloakError };
 
 export function readAttributeValue(attributes, key) {
   const value = attributes?.[key];
   if (Array.isArray(value)) return value[0];
   return value;
+}
+
+const APP_USER_PROFILE_ATTRIBUTES = [
+  "onboardingStatus",
+  "emailVerificationStatus",
+  "emailVerificationOtpHash",
+  "emailVerificationLinkHash",
+  "emailVerificationOtpExpiresAt",
+  "passwordResetOtpHash",
+  "passwordResetOtpExpiresAt",
+  "appMfaConfigured",
+  "appMfaTempSecretEncrypted",
+  "appMfaTempSecretCreatedAt",
+  "appMfaSecretEncrypted",
+  "appMfaConfiguredAt",
+  "mfaConfigured",
+  "emailVerificationHash",
+  "emailVerificationExpiresAt",
+  "termsAcceptedAt",
+  "passwordUpdatedAt",
+  "sessionVersion",
+  "locale",
+  "preferredLocale",
+  "identityProvider",
+  "ssoUsernameRequired",
+];
+
+const APP_WRITABLE_PROFILE_ATTRIBUTES = [
+  ...APP_USER_PROFILE_ATTRIBUTES,
+  "username",
+  "firstName",
+  "lastName",
+];
+
+let appUserProfileReady = false;
+
+function buildAppUserProfileAttribute(name) {
+  return {
+    name,
+    displayName: name,
+    permissions: {
+      view: ["admin", "user"],
+      edit: ["admin"],
+    },
+    multivalued: false,
+  };
+}
+
+function normalizeAppUserProfileAttribute(attribute) {
+  if (!APP_WRITABLE_PROFILE_ATTRIBUTES.includes(attribute.name)) return attribute;
+
+  const appManaged = APP_USER_PROFILE_ATTRIBUTES.includes(attribute.name);
+
+  return {
+    ...attribute,
+    permissions: {
+      ...(attribute.permissions || {}),
+      view: ["admin", "user"],
+      edit: appManaged ? ["admin"] : ["admin", "user"],
+    },
+    multivalued: false,
+  };
+}
+
+export async function ensureAppUserProfileAttributes(options = {}) {
+  if (appUserProfileReady && !options.force) return;
+
+  const response = await keycloakAdminFetch("/users/profile");
+
+  if (!response.ok) {
+    throw new Error(
+      await getKeycloakError(response, "Failed to load Keycloak user profile"),
+    );
+  }
+
+  const profile = await response.json();
+  const attributes = Array.isArray(profile.attributes) ? profile.attributes : [];
+  const normalizedAttributes = attributes.map(normalizeAppUserProfileAttribute);
+  const existingNames = new Set(attributes.map((attribute) => attribute.name));
+  const missingAttributes = APP_USER_PROFILE_ATTRIBUTES
+    .filter((name) => !existingNames.has(name))
+    .map(buildAppUserProfileAttribute);
+  const attributesChanged =
+    JSON.stringify(attributes) !== JSON.stringify(normalizedAttributes);
+
+  if (missingAttributes.length === 0 && !attributesChanged) {
+    appUserProfileReady = true;
+    return;
+  }
+
+  const updateResponse = await keycloakAdminFetch("/users/profile", {
+    method: "PUT",
+    body: JSON.stringify({
+      ...profile,
+      attributes: [...normalizedAttributes, ...missingAttributes],
+    }),
+  });
+
+  if (!updateResponse.ok) {
+    throw new Error(
+      await getKeycloakError(
+        updateResponse,
+        "Failed to update Keycloak user profile attributes",
+      ),
+    );
+  }
+
+  appUserProfileReady = true;
 }
 
 export function hasAppMfaConfigured(user) {
@@ -87,9 +196,193 @@ export async function findUserByUsernameOrEmail(identifier) {
   return null;
 }
 
-export async function getUserRealmRoles(userId) {
-  const response = await keycloakAdminFetch(
+function buildUsernameFromEmail(email, includeDomain = false) {
+  const [localPart, domain = ""] = String(email || "").toLowerCase().split("@");
+  const source = includeDomain && domain ? `${localPart}.${domain}` : localPart;
+
+  return source
+    .replace(/[^a-z0-9._-]/g, ".")
+    .replace(/\.+/g, ".")
+    .replace(/^\.+|\.+$/g, "")
+    .slice(0, 60);
+}
+
+async function buildAvailableSsoUsername(email) {
+  const candidates = [
+    buildUsernameFromEmail(email),
+    buildUsernameFromEmail(email, true),
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const existing = await findUserByUsername(candidate);
+    if (!existing?.id) return candidate;
+  }
+
+  const suffix = crypto.randomUUID().slice(0, 6);
+  return `${(candidates[1] || candidates[0]).slice(0, 60 - suffix.length - 1)}.${suffix}`;
+}
+
+async function updateExistingSsoUser(user, provider) {
+  const generatedUsername = buildUsernameFromEmail(user.email) === user.username ||
+    buildUsernameFromEmail(user.email, true) === user.username;
+  const usernameRequired =
+    readAttributeValue(user.attributes, "ssoUsernameRequired") === "true" ||
+    generatedUsername;
+  const attributes = {
+    ...(user.attributes || {}),
+    onboardingStatus: ["READY"],
+    emailVerificationStatus: ["VERIFIED"],
+    appMfaConfigured: [readAttributeValue(user.attributes, "appMfaConfigured") || "false"],
+    identityProvider: [provider],
+    ssoUsernameRequired: [usernameRequired ? "true" : "false"],
+  };
+
+  const updateRes = await keycloakAdminFetch(`/users/${encodeURIComponent(user.id)}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      ...user,
+      enabled: user.enabled !== false,
+      emailVerified: true,
+      requiredActions: user.requiredActions || [],
+      attributes,
+    }),
+  });
+
+  if (!updateRes.ok) {
+    throw new Error(await getKeycloakError(updateRes, "Failed to update SSO user"));
+  }
+
+  return {
+    ...user,
+    enabled: user.enabled !== false,
+    emailVerified: true,
+    requiredActions: user.requiredActions || [],
+    attributes,
+  };
+}
+
+async function createSsoUser({ email, name, provider }) {
+  const [firstName = "", ...lastNameParts] = String(name || "").trim().split(/\s+/);
+  const username = await buildAvailableSsoUsername(email);
+
+  if (!username) {
+    throw new Error("Google account did not return a usable email address");
+  }
+
+  await ensureAppUserProfileAttributes();
+
+  const createRes = await keycloakAdminFetch("/users", {
+    method: "POST",
+    body: JSON.stringify({
+      username,
+      firstName,
+      lastName: lastNameParts.join(" "),
+      email,
+      enabled: true,
+      emailVerified: true,
+      requiredActions: [],
+      attributes: {
+        onboardingStatus: ["READY"],
+        emailVerificationStatus: ["VERIFIED"],
+        appMfaConfigured: ["false"],
+        identityProvider: [provider],
+        ssoUsernameRequired: ["true"],
+      },
+    }),
+  });
+
+  if (!createRes.ok) {
+    throw new Error(await getKeycloakError(createRes, "Failed to create SSO user"));
+  }
+
+  const userId = createRes.headers.get("location")?.split("/").pop();
+  if (!userId) {
+    throw new Error("SSO user was created, but Keycloak did not return its ID");
+  }
+
+  return {
+    id: userId,
+    username,
+    firstName,
+    lastName: lastNameParts.join(" "),
+    email,
+    enabled: true,
+    emailVerified: true,
+    attributes: {
+      onboardingStatus: ["READY"],
+      emailVerificationStatus: ["VERIFIED"],
+      appMfaConfigured: ["false"],
+      identityProvider: [provider],
+      ssoUsernameRequired: ["true"],
+    },
+  };
+}
+
+async function prepareSsoUser({ email, name, provider }) {
+  const existing = await findUserByEmail(email);
+  if (existing?.id) {
+    return updateExistingSsoUser(existing, provider);
+  }
+
+  return createSsoUser({ email, name, provider });
+}
+
+async function ensureDefaultAppUserRole(userId) {
+  const [currentRoles, appUserRole] = await Promise.all([
+    getUserRealmRoles(userId),
+    resolveRealmRoles(["app-user"]),
+  ]);
+  const currentNames = new Set(currentRoles.map((role) => role.name));
+  const rolesToAdd = appUserRole.filter((role) => !currentNames.has(role.name));
+
+  if (rolesToAdd.length === 0) return currentRoles;
+
+  const roleRes = await keycloakAdminFetch(
     `/users/${encodeURIComponent(userId)}/role-mappings/realm`,
+    { method: "POST", body: JSON.stringify(rolesToAdd) },
+  );
+
+  if (!roleRes.ok) {
+    throw new Error(await getKeycloakError(roleRes, "Failed to assign app-user role"));
+  }
+
+  return [...currentRoles, ...rolesToAdd];
+}
+
+export async function ensureSsoUser({ email, name, provider = "google" }) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!normalizedEmail) {
+    throw new Error("Google account did not return an email address");
+  }
+
+  await ensureAppUserProfileAttributes();
+
+  const user = await prepareSsoUser({
+    email: normalizedEmail,
+    name,
+    provider,
+  });
+
+  if (user.enabled === false) {
+    throw new Error("This account is disabled");
+  }
+
+  const roles = await ensureDefaultAppUserRole(user.id);
+
+  return {
+    id: user.id,
+    name: user.firstName || user.username || name || normalizedEmail,
+    email: user.email || normalizedEmail,
+    needsUsername: readAttributeValue(user.attributes, "ssoUsernameRequired") === "true",
+    sessionVersion: readAttributeValue(user.attributes, "sessionVersion") || "",
+    roles: roles.map((role) => role.name),
+  };
+}
+
+export async function getUserRealmRoles(userId, { effective = false } = {}) {
+  const suffix = effective ? "/composite" : "";
+  const response = await keycloakAdminFetch(
+    `/users/${encodeURIComponent(userId)}/role-mappings/realm${suffix}`,
   );
 
   if (!response.ok) {

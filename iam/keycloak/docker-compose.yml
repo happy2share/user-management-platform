@@ -9,7 +9,7 @@ services:
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT}:3306"
+      - "127.0.0.1:${DB_PORT}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -28,7 +28,7 @@ services:
       mysql:
         condition: service_healthy
     ports:
-      - "${MYSQL_CLIENT_PORT}:8080"
+      - "127.0.0.1:${MYSQL_CLIENT_PORT}:8080"
     environment:
       ADMINER_DEFAULT_SERVER: ${DB_HOST}
     networks:
@@ -43,10 +43,10 @@ services:
       mysql:
         condition: service_healthy
     ports:
-      - "${KC_PORT}:8080"
+      - "127.0.0.1:${KC_PORT}:8080"
     environment:
       KC_DB: mysql
-      KC_DB_URL: jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+      KC_DB_URL: jdbc:mysql://${DB_HOST}:3306/${DB_NAME}
       KC_DB_USERNAME: ${DB_USERNAME}
       KC_DB_PASSWORD: ${DB_PASSWORD}
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN}
@@ -57,8 +57,26 @@ services:
     networks:
       - keycloak-net
 
+  redis:
+    image: redis:7-alpine
+    container_name: iam-platform-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - keycloak-net
+
 volumes:
   mysql_data:
+  redis_data:
 
 networks:
   keycloak-net:

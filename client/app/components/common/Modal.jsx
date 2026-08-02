@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import styles from "./Modal.module.css";
 
-export default function Modal({ title, onClose, children, footer }) {
+export default function Modal({ title, onClose, children, footer, className = "" }) {
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export default function Modal({ title, onClose, children, footer }) {
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div
-        className={styles.modal}
+        className={`${styles.modal} ${className}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

@@ -2,7 +2,7 @@ import crypto from "crypto";
 import QRCode from "qrcode";
 
 import { keycloakAdminFetch } from "./keycloak";
-import { getKeycloakError } from "./keycloak-users";
+import { ensureAppUserProfileAttributes } from "./keycloak-users";
 
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
@@ -17,7 +17,8 @@ export function isAppMfaConfigured(user) {
 }
 
 function getEncryptionKey() {
-  const source = process.env.APP_MFA_ENCRYPTION_KEY;
+  const source = process.env.APP_MFA_ENCRYPTION_KEY ||
+    (process.env.NODE_ENV === "production" ? "" : process.env.NEXTAUTH_SECRET);
 
   if (!source) {
     throw new Error("APP_MFA_ENCRYPTION_KEY is required");
@@ -137,7 +138,8 @@ export function verifyTotp(secret, token, { window = 1 } = {}) {
   const now = Date.now();
   for (let offset = -window; offset <= window; offset += 1) {
     const timestamp = now + offset * 30_000;
-    if (generateTotp(secret, 30, cleanToken.length, timestamp) === cleanToken) {
+    const expected = generateTotp(secret, 30, cleanToken.length, timestamp);
+    if (crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(cleanToken))) {
       return true;
     }
   }
@@ -162,18 +164,23 @@ export function buildQrImageUrl(otpauthUri) {
   return QRCode.toDataURL(otpauthUri, { width: 220, margin: 1 });
 }
 
+function isEmptyAttributeValue(value) {
+  return value == null || value === "" || (Array.isArray(value) && value.length === 0);
+}
+
 export async function updateUserAttributes(user, updates) {
   if (!user?.id) throw new Error("User ID is required");
 
-  const nextAttributes = {
-    ...(user.attributes || {}),
-    ...Object.fromEntries(
-      Object.entries(updates).map(([key, value]) => [
-        key,
-        Array.isArray(value) ? value : [String(value)],
-      ]),
-    ),
-  };
+  await ensureAppUserProfileAttributes();
+
+  const nextAttributes = { ...(user.attributes || {}) };
+  for (const [key, value] of Object.entries(updates)) {
+    if (isEmptyAttributeValue(value)) {
+      delete nextAttributes[key];
+    } else {
+      nextAttributes[key] = Array.isArray(value) ? value : [String(value)];
+    }
+  }
 
   const response = await keycloakAdminFetch(`/users/${encodeURIComponent(user.id)}`, {
     method: "PUT",
@@ -184,17 +191,17 @@ export async function updateUserAttributes(user, updates) {
   });
 
   if (!response.ok) {
-    throw new Error(
-      await getKeycloakError(response, "Failed to update user attributes"),
-    );
+    const text = await response.text();
+    throw new Error(text || "Failed to update user attributes");
   }
 
   const expectedAttributes = Object.entries(updates)
     .map(([key, value]) => [
       key,
-      Array.isArray(value) ? value[0] : String(value),
-    ])
-    .filter(([, value]) => value);
+      isEmptyAttributeValue(value)
+        ? undefined
+        : Array.isArray(value) ? value[0] : String(value),
+    ]);
 
   if (expectedAttributes.length > 0) {
     const checkResponse = await keycloakAdminFetch(
@@ -202,9 +209,8 @@ export async function updateUserAttributes(user, updates) {
     );
 
     if (!checkResponse.ok) {
-      throw new Error(
-        await getKeycloakError(checkResponse, "Failed to verify user attributes"),
-      );
+      const text = await checkResponse.text();
+      throw new Error(text || "Failed to verify user attributes");
     }
 
     const savedUser = await checkResponse.json();

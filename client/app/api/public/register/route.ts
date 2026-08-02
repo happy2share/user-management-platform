@@ -1,31 +1,19 @@
 export const runtime = "nodejs";
-import { NextResponse } from "next/server";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
+import { logError } from "@/app/lib/file-logger.mjs";
 import { keycloakAdminFetch } from "../../../lib/keycloak";
 import {
+  ensureAppUserProfileAttributes,
   getKeycloakError,
   resolveRealmRoles,
 } from "../../../lib/keycloak-users";
 import { sendEmailVerification } from "../../../lib/app-email";
-import { normalizeObjectTextFields } from "../../../lib/english-normalizer";
+import { normalizeObjectTextFields } from "../../../i18n/english-normalizer";
+import { rateLimitIdentifier } from "../../../lib/redis_utility";
 
 export async function POST(req: Request) {
+  let createdUserId: string | undefined;
   try {
-    const realmRes = await keycloakAdminFetch("");
-    if (!realmRes.ok) {
-      return NextResponse.json(
-        { error: await getKeycloakError(realmRes, "Failed to check registration settings") },
-        { status: realmRes.status },
-      );
-    }
-
-    const realm = await realmRes.json();
-    if (realm.registrationAllowed !== true) {
-      return NextResponse.json(
-        { error: "Public registration is disabled" },
-        { status: 400 },
-      );
-    }
-
     const rawBody = await req.json();
     const body = {
       ...rawBody,
@@ -42,10 +30,22 @@ export async function POST(req: Request) {
       !password
     ) {
       return NextResponse.json(
-        { error: "First name, last name, username, email and password are required" },
+        {
+          error:
+            "First name, last name, username, email and password are required",
+        },
         { status: 400 },
       );
     }
+
+    if (await rateLimitIdentifier("register-email", email.trim().toLowerCase(), 3, 86_400)) {
+      return NextResponse.json(
+        { error: "Too many registration attempts. Try again later." },
+        { status: 429 },
+      );
+    }
+
+    await ensureAppUserProfileAttributes();
 
     const createRes = await keycloakAdminFetch("/users", {
       method: "POST",
@@ -73,13 +73,12 @@ export async function POST(req: Request) {
     });
 
     if (!createRes.ok) {
-      return NextResponse.json(
-        { error: await getKeycloakError(createRes, "Failed to register user") },
-        { status: createRes.status },
-      );
+      const error = await getKeycloakError(createRes, "Failed to register user");
+      return NextResponse.json({ error }, { status: createRes.status });
     }
 
     const userId = createRes.headers.get("location")?.split("/").pop();
+    createdUserId = userId;
 
     if (!userId) {
       return NextResponse.json(
@@ -89,26 +88,25 @@ export async function POST(req: Request) {
     }
 
     const appUserRole = await resolveRealmRoles(["app-user"]);
-    if (appUserRole.length > 0) {
+    if (appUserRole.length === 0) throw new Error('Realm role "app-user" does not exist');
+    {
       const roleRes = await keycloakAdminFetch(
         `/users/${encodeURIComponent(userId)}/role-mappings/realm`,
         { method: "POST", body: JSON.stringify(appUserRole) },
       );
 
       if (!roleRes.ok) {
-        return NextResponse.json(
-          { error: await getKeycloakError(roleRes, "Failed to assign app-user role") },
-          { status: roleRes.status },
+        throw new Error(
+          await getKeycloakError(roleRes, "Failed to assign app-user role"),
         );
       }
     }
 
-    const userRes = await keycloakAdminFetch(`/users/${encodeURIComponent(userId)}`);
+    const userRes = await keycloakAdminFetch(
+      `/users/${encodeURIComponent(userId)}`,
+    );
     if (!userRes.ok) {
-      return NextResponse.json(
-        { error: await getKeycloakError(userRes, "Failed to load registered user") },
-        { status: userRes.status },
-      );
+      throw new Error(await getKeycloakError(userRes, "Failed to load registered user"));
     }
     const createdUser = await userRes.json();
     const verification = await sendEmailVerification(createdUser);
@@ -117,7 +115,9 @@ export async function POST(req: Request) {
       {
         message: verification.emailSent
           ? "Registration successful. Enter the email OTP, then complete MFA setup from the login page."
-          : "Registration successful. App SMTP is not configured, so use the local email OTP shown below for testing.",
+          : verification.localOtpCode
+            ? "Registration successful. App SMTP is not configured, so use the local email OTP shown below for testing."
+            : "Registration successful, but email delivery is unavailable. Contact an administrator.",
         emailVerificationSent: verification.emailSent,
         verificationPageLink: verification.verificationPageLink,
         verificationLink: verification.verificationPageLink,
@@ -127,8 +127,39 @@ export async function POST(req: Request) {
       { status: 201 },
     );
   } catch (error: unknown) {
+    if (createdUserId) {
+      try {
+        const cleanupResponse = await keycloakAdminFetch(`/users/${encodeURIComponent(createdUserId)}`, {
+          method: "DELETE",
+        });
+        if (!cleanupResponse.ok) {
+          void logError("Failed to roll back incomplete registration", {
+            endpoint: "/api/public/register",
+            method: "POST",
+            operation: "register.rollback",
+            userId: createdUserId,
+            status: cleanupResponse.status,
+          });
+        }
+      } catch (cleanupError) {
+        void logError("Failed to roll back incomplete registration", {
+          endpoint: "/api/public/register",
+          method: "POST",
+          operation: "register.rollback",
+          userId: createdUserId,
+          error: cleanupError,
+        });
+      }
+    }
+    void logError("Failed to register user", {
+      endpoint: "/api/public/register",
+      method: "POST",
+      operation: "register",
+      userId: createdUserId,
+      error,
+    });
     return NextResponse.json(
-      { error: await getKeycloakError(error, "Failed to register user") },
+      { error: "Failed to register user" },
       { status: 500 },
     );
   }

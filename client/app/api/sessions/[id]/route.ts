@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../../lib/api-auth";
 import { keycloakAdminFetch } from "../../../lib/keycloak";
 import { getKeycloakError } from "../../../lib/keycloak-users";
+import { invalidateUserSessions } from "../../../lib/activation";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -20,23 +21,14 @@ export async function DELETE(req: Request, context: RouteContext) {
       { method: "DELETE" },
     );
 
-    if (bySession.ok) {
-      results.push("specific session revoked");
+    if (!bySession.ok) {
+      const error = await getKeycloakError(bySession, "Failed to revoke session");
+      return NextResponse.json({ error }, { status: bySession.status });
     }
+    results.push("specific session revoked");
 
     if (userId) {
-      const byUser = await keycloakAdminFetch(
-        `/users/${encodeURIComponent(userId)}/logout`,
-        { method: "POST" },
-      );
-
-      if (!byUser.ok) {
-        return NextResponse.json(
-          { error: await getKeycloakError(byUser, "Failed to fully logout user from Keycloak") },
-          { status: byUser.status },
-        );
-      }
-
+      await invalidateUserSessions(userId);
       results.push("all user sessions revoked");
     }
 
@@ -44,13 +36,12 @@ export async function DELETE(req: Request, context: RouteContext) {
       return NextResponse.json({ message: results.join("; ") });
     }
 
-    return NextResponse.json(
-      { error: await getKeycloakError(bySession, "Failed to revoke session") },
-      { status: bySession.status },
-    );
+    const error = await getKeycloakError(bySession, "Failed to revoke session");
+
+    return NextResponse.json({ error }, { status: bySession.status });
   } catch (error: unknown) {
     return NextResponse.json(
-      { error: await getKeycloakError(error, "Failed to revoke session") },
+      { error: error instanceof Error ? error.message : "Failed to revoke session" },
       { status: 500 },
     );
   }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { useLanguage } from "../../i18n/LanguageProvider";
-import { normalizeToEnglish } from "../../lib/english-normalizer";
+import { useLanguage } from "./LanguageProvider";
+import { normalizeToEnglish } from "./english-normalizer";
 
 const SCRIPT_TESTS = {
   en: /[A-Za-z]/u,
@@ -91,6 +91,7 @@ export default function EnglishInputGuard() {
       if (shouldForceEnglish(target)) {
         const normalized = normalizeToEnglish(target.value, {
           username: isUsernameField(target),
+          trimUsernameDots: false,
         });
         changed = normalized !== target.value;
         nextValue = normalized;

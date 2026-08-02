@@ -4,7 +4,6 @@ import {
   KEYCLOAK_ADMIN_API,
   KEYCLOAK_TOKEN_URL,
 } from "./constants";
-import { getKeycloakError } from "./keycloak-error";
 
 export async function getAdminAccessToken() {
   const body = new URLSearchParams();
@@ -20,10 +19,12 @@ export async function getAdminAccessToken() {
     },
     body,
     cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!res.ok) {
-    throw new Error(await getKeycloakError(res, "Failed to get admin token"));
+    const errorText = await res.text();
+    throw new Error(`Failed to get admin token: ${errorText}`);
   }
 
   const data = await res.json();
@@ -41,7 +42,24 @@ export async function keycloakAdminFetch(path, options = {}) {
       ...(options.headers || {}),
     },
     cache: "no-store",
+    signal: options.signal || AbortSignal.timeout(10_000),
   });
 
   return res;
+}
+
+export async function keycloakAdminFetchAll(path, pageSize = 100) {
+  const items = [];
+  const separator = path.includes("?") ? "&" : "?";
+
+  for (let first = 0; ; first += pageSize) {
+    const response = await keycloakAdminFetch(
+      `${path}${separator}first=${first}&max=${pageSize}`,
+    );
+    if (!response.ok) throw new Error((await response.text()) || "Keycloak list request failed");
+    const page = await response.json();
+    if (!Array.isArray(page)) throw new Error("Keycloak list response was invalid");
+    items.push(...page);
+    if (page.length < pageSize) return items;
+  }
 }

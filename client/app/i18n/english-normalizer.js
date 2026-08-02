@@ -9,12 +9,8 @@ const SCRIPT_ENTRIES = [
 
 const SCRIPT_MAP = Object.fromEntries(SCRIPT_ENTRIES);
 
-export function containsNonEnglish(value = "") {
-  return /[^\u0000-\u007F]/.test(String(value));
-}
-
 export function normalizeToEnglish(value = "", options = {}) {
-  const { username = false } = options;
+  const { username = false, trimUsernameDots = true } = options;
   let text = String(value)
     .split("")
     .map((char) => SCRIPT_MAP[char] ?? char)
@@ -28,8 +24,11 @@ export function normalizeToEnglish(value = "", options = {}) {
       .toLowerCase()
       .replace(/\s+/g, ".")
       .replace(/[^a-z0-9._-]/g, "")
-      .replace(/\.{2,}/g, ".")
-      .replace(/^\.+|\.+$/g, "");
+      .replace(/\.{2,}/g, ".");
+
+    if (trimUsernameDots) {
+      text = text.replace(/^\.+|\.+$/g, "");
+    }
   } else {
     text = text.replace(/[^a-zA-Z0-9@._\-\s,/:()&]/g, "").replace(/\s{2,}/g, " ");
   }

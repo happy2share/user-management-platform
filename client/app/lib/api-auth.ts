@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-import { NextResponse } from "next/server";
+import { ApiNextResponse as NextResponse } from "./api-response";
 import { authOptions } from "./auth";
 
 type AuthorizedSession = {

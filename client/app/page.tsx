@@ -5,6 +5,7 @@ import LandingAuth from "./components/auth/LandingAuth";
 import { roleTarget } from "./lib/role-target";
 
 type SessionWithRoles = {
+  needsUsername?: boolean;
   roles?: string[];
 };
 
@@ -12,7 +13,9 @@ export default async function HomePage() {
   const session = await getServerSession(authOptions);
 
   if (session) {
-    const roles = (session as typeof session & SessionWithRoles).roles ?? [];
+    const typedSession = session as typeof session & SessionWithRoles;
+    if (typedSession.needsUsername) redirect("/choose-username");
+    const roles = typedSession.roles ?? [];
     redirect(roleTarget(roles));
   }
 
