@@ -9,7 +9,7 @@ export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const unauthorized = await requireRealmAdmin();
+  const unauthorized = await requireRealmAdmin(req);
   if (unauthorized) return unauthorized;
   const { id } = await context.params;
   await commonEntryLog(req, { id });

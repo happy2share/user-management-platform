@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth";
+import { authorizedSessionFor } from "./api-auth";
 import { authOptions } from "./auth";
 import { logDebug, logError, logInfo, logWarn } from "./file-logger.mjs";
 
@@ -48,9 +49,8 @@ export async function commonEntryLog(
   params: RouteParams = {},
 ) {
   const url = new URL(request.url);
-  const session = (await getServerSession(authOptions).catch(() => null)) as
-    | SessionInfo
-    | null;
+  const session = (authorizedSessionFor(request) ??
+    (await getServerSession(authOptions).catch(() => null))) as SessionInfo | null;
 
   await logEntry("info", `${request.method} ${url.pathname} requested from admin UI`, {
     userInfo: {

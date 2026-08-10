@@ -93,7 +93,7 @@ export default function UsersPage() {
 
   const fetchGroups = useCallback(async () => {
     try {
-      const res = await fetch("/api/groups", { cache: "no-store" });
+      const res = await fetch("/api/groups?options=true", { cache: "no-store" });
       if (!res.ok) return;
       const data = await readApiResponse(res);
       setGroupOptions(flattenGroups(Array.isArray(data) ? data : []));
@@ -127,11 +127,9 @@ export default function UsersPage() {
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       fetchUsers();
-      fetchGroups();
-      fetchRoles();
     }, 0);
     return () => window.clearTimeout(timeoutId);
-  }, [fetchGroups, fetchRoles, fetchUsers]);
+  }, [fetchUsers]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -289,6 +287,8 @@ export default function UsersPage() {
   }
 
   function openEdit(user) {
+    fetchGroups();
+    fetchRoles();
     setEditing(user);
     setForm({
       firstName: user.firstName || "",
@@ -385,6 +385,8 @@ export default function UsersPage() {
         <button
           className="btn btn-primary"
           onClick={() => {
+            fetchGroups();
+            fetchRoles();
             setForm(DEFAULT_FORM);
             setFormError("");
             setModal("create");

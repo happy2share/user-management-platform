@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ShieldCheck } from "lucide-react";
 import LanguageSelector from "../../i18n/LanguageSelector";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { normalizeToEnglish } from "../../i18n/english-normalizer";
@@ -540,13 +540,22 @@ export default function LandingAuth() {
   }
 
   return (
-    <main className="auth-shell">
-      <section className="auth-card">
-        <div className="auth-title-block">
-          <div className="auth-logo" aria-hidden="true" />
-          <h1>IAM Platform</h1>
-          <LanguageSelector variant="auth" />
-        </div>
+    <main className="auth-shell auth-home">
+      <LanguageSelector variant="auth" />
+
+      <div className="auth-layout">
+        <section className="auth-brand-panel" aria-labelledby="auth-brand-title">
+          <div className="auth-brand-content">
+            <span className="auth-brand-mark" aria-hidden="true">
+              <ShieldCheck size={52} strokeWidth={1.6} />
+            </span>
+            <p className="auth-brand-eyebrow">Identity &amp; Access Management</p>
+            <h1 id="auth-brand-title">IAM Platform</h1>
+            <p className="auth-brand-tagline">Authorise. Secure. Observe.</p>
+          </div>
+        </section>
+
+        <section className="auth-card auth-access-panel">
 
         <div className="auth-tabs" role="tablist">
           <button
@@ -598,18 +607,6 @@ export default function LandingAuth() {
         {mode === "login" ? (
           loginStep === "password" ? (
             <>
-              <button
-                type="button"
-                className="auth-google"
-                disabled={busy}
-                onClick={handleGoogleLogin}
-              >
-                <span className="auth-google-mark" aria-hidden="true">G</span>
-                {t("auth.continueWithGoogle")}
-              </button>
-              <div className="auth-divider">
-                <span>{t("auth.orLoginWithPassword")}</span>
-              </div>
               <form onSubmit={handleLogin} className="auth-form">
                 <label>
                   <span>{t("auth.username")} <RequiredMark /></span>
@@ -644,9 +641,6 @@ export default function LandingAuth() {
                     />
                   </span>
                 </label>
-                <button className="auth-submit" disabled={busy} type="submit">
-                  {busy ? t("auth.verifying") : t("auth.login")}
-                </button>
                 <button
                   type="button"
                   className="auth-forgot-link"
@@ -658,7 +652,22 @@ export default function LandingAuth() {
                 >
                   {t("auth.forgotPassword")}
                 </button>
+                <button className="auth-submit" disabled={busy} type="submit">
+                  {busy ? t("auth.verifying") : t("auth.login")}
+                </button>
               </form>
+              <div className="auth-divider">
+                <span>{t("auth.orContinueWithGoogle")}</span>
+              </div>
+              <button
+                type="button"
+                className="auth-google"
+                disabled={busy}
+                onClick={handleGoogleLogin}
+              >
+                <span className="auth-google-mark" aria-hidden="true">G</span>
+                {t("auth.continueWithGoogle")}
+              </button>
             </>
           ) : loginStep === "forgot-identifier" ? (
             <form onSubmit={handleForgotPasswordStart} className="auth-form">
@@ -1053,7 +1062,8 @@ export default function LandingAuth() {
             </button>
           </form>
         )}
-      </section>
+        </section>
+      </div>
     </main>
   );
 }

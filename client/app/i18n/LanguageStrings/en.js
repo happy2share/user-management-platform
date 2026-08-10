@@ -64,6 +64,7 @@ const en = {
     login: "Login",
     register: "Register",
     continueWithGoogle: "Continue with Google",
+    orContinueWithGoogle: "or continue with Google",
     orLoginWithPassword: "or use password",
     username: "Username",
     password: "Password",

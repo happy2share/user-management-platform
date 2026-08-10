@@ -5,7 +5,7 @@ import { keycloakAdminFetch } from "../../lib/keycloak";
 import { normalizeObjectTextFields } from "../../i18n/english-normalizer";
 
 export async function GET(req: Request) {
-  const unauthorized = await requireRealmAdmin();
+  const unauthorized = await requireRealmAdmin(req);
   if (unauthorized) return unauthorized;
   await commonEntryLog(req);
 
@@ -43,7 +43,7 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const unauthorized = await requireRealmAdmin();
+  const unauthorized = await requireRealmAdmin(req);
   if (unauthorized) return unauthorized;
   await commonEntryLog(req);
 

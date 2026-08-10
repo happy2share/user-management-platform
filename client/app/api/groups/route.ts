@@ -44,6 +44,25 @@ async function getGroupChildren(group: KeycloakGroup, visited: Set<string>) {
   );
 }
 
+async function expandGroupOptions(
+  group: KeycloakGroup,
+  visited = new Set<string>(),
+): Promise<KeycloakGroup> {
+  if (visited.has(group.id)) return { ...group, subGroups: [] };
+  visited.add(group.id);
+
+  const children = await keycloakAdminFetchAll(
+    `/groups/${encodeURIComponent(group.id)}/children?briefRepresentation=false`,
+  ) as KeycloakGroup[];
+
+  return {
+    ...group,
+    subGroups: await Promise.all(
+      children.map((child) => expandGroupOptions(child, new Set(visited))),
+    ),
+  };
+}
+
 async function enrichGroup(group: KeycloakGroup, visited = new Set<string>()): Promise<EnrichedGroup> {
   const [directMembers, subGroups] = await Promise.all([
     getDirectGroupMembers(group.id),
@@ -74,14 +93,20 @@ async function enrichGroup(group: KeycloakGroup, visited = new Set<string>()): P
   };
 }
 
-export async function GET() {
-  const unauthorized = await requireRealmAdmin();
+export async function GET(request: Request) {
+  const unauthorized = await requireRealmAdmin(request);
   if (unauthorized) return unauthorized;
 
   try {
     const groups = await keycloakAdminFetchAll(
       "/groups?briefRepresentation=false",
     ) as KeycloakGroup[];
+
+    if (new URL(request.url).searchParams.get("options") === "true") {
+      return NextResponse.json(
+        await Promise.all(groups.map((group) => expandGroupOptions(group))),
+      );
+    }
 
     const enrichedGroups = await Promise.all(
       groups.map((group: KeycloakGroup) => enrichGroup(group)),

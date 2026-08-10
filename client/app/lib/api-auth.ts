@@ -6,7 +6,13 @@ type AuthorizedSession = {
   roles?: string[];
 };
 
-export async function requireRealmAdmin() {
+const authorizedSessions = new WeakMap<Request, AuthorizedSession>();
+
+export function authorizedSessionFor(request: Request) {
+  return authorizedSessions.get(request);
+}
+
+export async function requireRealmAdmin(request?: Request) {
   const session = await getServerSession(authOptions);
 
   if (!session) {
@@ -22,5 +28,6 @@ export async function requireRealmAdmin() {
     );
   }
 
+  if (request) authorizedSessions.set(request, session as AuthorizedSession);
   return null;
 }
