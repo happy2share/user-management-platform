@@ -549,9 +549,9 @@ export default function LandingAuth() {
             <span className="auth-brand-mark" aria-hidden="true">
               <ShieldCheck size={52} strokeWidth={1.6} />
             </span>
-            <p className="auth-brand-eyebrow">Identity &amp; Access Management</p>
-            <h1 id="auth-brand-title">IAM Platform</h1>
-            <p className="auth-brand-tagline">Authorise. Secure. Observe.</p>
+            <p className="auth-brand-eyebrow">{t("auth.brandEyebrow")}</p>
+            <h1 id="auth-brand-title">{t("auth.brandTitle")}</h1>
+            <p className="auth-brand-tagline">{t("auth.brandTagline")}</p>
           </div>
         </section>
 

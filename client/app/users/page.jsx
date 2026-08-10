@@ -62,6 +62,7 @@ export default function UsersPage() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(DEFAULT_FORM);
   const [saving, setSaving] = useState(false);
+  const [formOptionsLoading, setFormOptionsLoading] = useState(false);
   const [actionUserId, setActionUserId] = useState(null);
   const [formError, setFormError] = useState("");
   const [resetPasswordUser, setResetPasswordUser] = useState(null);
@@ -123,6 +124,14 @@ export default function UsersPage() {
     }
   }, []);
 
+  const loadFormOptions = useCallback(async () => {
+    setFormOptionsLoading(true);
+    try {
+      await Promise.all([fetchGroups(), fetchRoles()]);
+    } finally {
+      setFormOptionsLoading(false);
+    }
+  }, [fetchGroups, fetchRoles]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -287,8 +296,7 @@ export default function UsersPage() {
   }
 
   function openEdit(user) {
-    fetchGroups();
-    fetchRoles();
+    void loadFormOptions();
     setEditing(user);
     setForm({
       firstName: user.firstName || "",
@@ -385,8 +393,7 @@ export default function UsersPage() {
         <button
           className="btn btn-primary"
           onClick={() => {
-            fetchGroups();
-            fetchRoles();
+            void loadFormOptions();
             setForm(DEFAULT_FORM);
             setFormError("");
             setModal("create");
@@ -595,14 +602,14 @@ export default function UsersPage() {
               <button
                 className="btn btn-outline"
                 onClick={closeModal}
-                disabled={saving}
+                disabled={saving || formOptionsLoading}
               >
                 {t("common.cancel")}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleCreate}
-                disabled={saving}
+                disabled={saving || formOptionsLoading}
               >
                 {saving ? t("auth.creating") : t("users.createUser")}
               </button>
@@ -624,14 +631,14 @@ export default function UsersPage() {
               <button
                 className="btn btn-outline"
                 onClick={closeModal}
-                disabled={saving}
+                disabled={saving || formOptionsLoading}
               >
                 {t("common.cancel")}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleUpdate}
-                disabled={saving}
+                disabled={saving || formOptionsLoading}
               >
                 {saving ? t("common.saving") : t("users.saveChanges")}
               </button>

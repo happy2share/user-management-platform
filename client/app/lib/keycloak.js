@@ -32,11 +32,18 @@ async function requestAdminAccessToken() {
   }
 
   const data = await res.json();
-  if (!data.access_token) throw new Error("Keycloak admin token response was invalid");
+  if (
+    typeof data.access_token !== "string" ||
+    data.access_token.trim() === "" ||
+    (data.expires_in !== undefined &&
+      (typeof data.expires_in !== "number" || !Number.isFinite(data.expires_in)))
+  ) {
+    throw new Error("Keycloak admin token response was invalid");
+  }
 
   cachedAdminToken = data.access_token;
   cachedAdminTokenExpiresAt =
-    Date.now() + Math.max(1, Number(data.expires_in || 60) - 30) * 1000;
+    Date.now() + Math.max(1, (data.expires_in ?? 60) - 30) * 1000;
   return cachedAdminToken;
 }
 
@@ -53,13 +60,13 @@ export async function getAdminAccessToken() {
 
 export async function keycloakAdminFetch(path, options = {}) {
   async function send(token) {
+    const headers = new Headers(options.headers);
+    if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+    headers.set("Authorization", `Bearer ${token}`);
+
     return fetch(`${KEYCLOAK_ADMIN_API}${path}`, {
       ...options,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-      },
+      headers,
       cache: "no-store",
       signal: options.signal || AbortSignal.timeout(10_000),
     });
