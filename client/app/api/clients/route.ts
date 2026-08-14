@@ -39,7 +39,7 @@ function normalizeClient(c: KeycloakClient) {
 }
 
 export async function GET(req: Request) {
-  const unauthorized = await requireRealmAdmin();
+  const unauthorized = await requireRealmAdmin(req);
   if (unauthorized) return unauthorized;
   await commonEntryLog(req);
 
@@ -63,7 +63,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const unauthorized = await requireRealmAdmin();
+  const unauthorized = await requireRealmAdmin(req);
   if (unauthorized) return unauthorized;
   await commonEntryLog(req);
 

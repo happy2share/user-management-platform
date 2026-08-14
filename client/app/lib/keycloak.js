@@ -3,9 +3,13 @@ import {
   KEYCLOAK_ADMIN_CLIENT_SECRET,
   KEYCLOAK_ADMIN_API,
   KEYCLOAK_TOKEN_URL,
-} from "./constants";
+} from "./constants.js";
 
-export async function getAdminAccessToken() {
+let cachedAdminToken;
+let cachedAdminTokenExpiresAt = 0;
+let pendingAdminToken;
+
+async function requestAdminAccessToken() {
   const body = new URLSearchParams();
 
   body.append("grant_type", "client_credentials");
@@ -28,24 +32,52 @@ export async function getAdminAccessToken() {
   }
 
   const data = await res.json();
-  return data.access_token;
+  if (
+    typeof data.access_token !== "string" ||
+    data.access_token.trim() === "" ||
+    (data.expires_in !== undefined &&
+      (typeof data.expires_in !== "number" || !Number.isFinite(data.expires_in)))
+  ) {
+    throw new Error("Keycloak admin token response was invalid");
+  }
+
+  cachedAdminToken = data.access_token;
+  cachedAdminTokenExpiresAt =
+    Date.now() + Math.max(1, (data.expires_in ?? 60) - 30) * 1000;
+  return cachedAdminToken;
+}
+
+export async function getAdminAccessToken() {
+  if (cachedAdminToken && Date.now() < cachedAdminTokenExpiresAt) {
+    return cachedAdminToken;
+  }
+
+  pendingAdminToken ??= requestAdminAccessToken().finally(() => {
+    pendingAdminToken = undefined;
+  });
+  return pendingAdminToken;
 }
 
 export async function keycloakAdminFetch(path, options = {}) {
+  async function send(token) {
+    const headers = new Headers(options.headers);
+    if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+    headers.set("Authorization", `Bearer ${token}`);
+
+    return fetch(`${KEYCLOAK_ADMIN_API}${path}`, {
+      ...options,
+      headers,
+      cache: "no-store",
+      signal: options.signal || AbortSignal.timeout(10_000),
+    });
+  }
+
   const token = await getAdminAccessToken();
+  const response = await send(token);
+  if (response.status !== 401) return response;
 
-  const res = await fetch(`${KEYCLOAK_ADMIN_API}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    cache: "no-store",
-    signal: options.signal || AbortSignal.timeout(10_000),
-  });
-
-  return res;
+  if (cachedAdminToken === token) cachedAdminTokenExpiresAt = 0;
+  return send(await getAdminAccessToken());
 }
 
 export async function keycloakAdminFetchAll(path, pageSize = 100) {

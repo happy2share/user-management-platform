@@ -62,6 +62,7 @@ export default function UsersPage() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(DEFAULT_FORM);
   const [saving, setSaving] = useState(false);
+  const [formOptionsLoading, setFormOptionsLoading] = useState(false);
   const [actionUserId, setActionUserId] = useState(null);
   const [formError, setFormError] = useState("");
   const [resetPasswordUser, setResetPasswordUser] = useState(null);
@@ -93,7 +94,7 @@ export default function UsersPage() {
 
   const fetchGroups = useCallback(async () => {
     try {
-      const res = await fetch("/api/groups", { cache: "no-store" });
+      const res = await fetch("/api/groups?options=true", { cache: "no-store" });
       if (!res.ok) return;
       const data = await readApiResponse(res);
       setGroupOptions(flattenGroups(Array.isArray(data) ? data : []));
@@ -123,15 +124,21 @@ export default function UsersPage() {
     }
   }, []);
 
+  const loadFormOptions = useCallback(async () => {
+    setFormOptionsLoading(true);
+    try {
+      await Promise.all([fetchGroups(), fetchRoles()]);
+    } finally {
+      setFormOptionsLoading(false);
+    }
+  }, [fetchGroups, fetchRoles]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       fetchUsers();
-      fetchGroups();
-      fetchRoles();
     }, 0);
     return () => window.clearTimeout(timeoutId);
-  }, [fetchGroups, fetchRoles, fetchUsers]);
+  }, [fetchUsers]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -289,6 +296,7 @@ export default function UsersPage() {
   }
 
   function openEdit(user) {
+    void loadFormOptions();
     setEditing(user);
     setForm({
       firstName: user.firstName || "",
@@ -385,6 +393,7 @@ export default function UsersPage() {
         <button
           className="btn btn-primary"
           onClick={() => {
+            void loadFormOptions();
             setForm(DEFAULT_FORM);
             setFormError("");
             setModal("create");
@@ -593,14 +602,14 @@ export default function UsersPage() {
               <button
                 className="btn btn-outline"
                 onClick={closeModal}
-                disabled={saving}
+                disabled={saving || formOptionsLoading}
               >
                 {t("common.cancel")}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleCreate}
-                disabled={saving}
+                disabled={saving || formOptionsLoading}
               >
                 {saving ? t("auth.creating") : t("users.createUser")}
               </button>
@@ -622,14 +631,14 @@ export default function UsersPage() {
               <button
                 className="btn btn-outline"
                 onClick={closeModal}
-                disabled={saving}
+                disabled={saving || formOptionsLoading}
               >
                 {t("common.cancel")}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleUpdate}
-                disabled={saving}
+                disabled={saving || formOptionsLoading}
               >
                 {saving ? t("common.saving") : t("users.saveChanges")}
               </button>

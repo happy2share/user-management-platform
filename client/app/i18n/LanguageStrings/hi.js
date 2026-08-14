@@ -64,6 +64,9 @@ const hi = {
   },
   auth: {
     ...en.auth,
+    brandEyebrow: "पहचान और पहुँच प्रबंधन",
+    brandTitle: "IAM प्लेटफ़ॉर्म",
+    brandTagline: "अधिकृत करें। सुरक्षित करें। निरीक्षण करें।",
     login: "लॉगिन",
     register: "रजिस्टर",
     username: "यूज़रनेम",

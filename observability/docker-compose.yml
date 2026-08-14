@@ -1,0 +1,16 @@
+services:
+  observability:
+    image: grafana/otel-lgtm:0.27.1
+    container_name: iam-observability
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+    volumes:
+      - observability_data:/data
+
+volumes:
+  observability_data:
+    external: true
+    name: keycloak_observability_data

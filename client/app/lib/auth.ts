@@ -50,6 +50,41 @@ type SsoUser = {
 const isProduction = process.env.NODE_ENV === "production";
 const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") || isProduction;
 const sessionCookieName = `${useSecureCookies ? "__Secure-" : ""}next-auth.session-token`;
+const pendingSessionValidations = new Map<string, Promise<{
+  accessRevoked: boolean;
+  roles: string[];
+}>>();
+
+function validateApplicationSession(userId: string, sessionVersion: string) {
+  const key = `${userId}:${sessionVersion}`;
+  const existing = pendingSessionValidations.get(key);
+  if (existing) return existing;
+
+  const validation = (async () => {
+    const userResponse = await keycloakAdminFetch(
+      `/users/${encodeURIComponent(userId)}`,
+    );
+    if (!userResponse.ok) throw new Error("Unable to validate application session");
+
+    const currentUser = await userResponse.json();
+    const currentSessionVersion =
+      readAttributeValue(currentUser.attributes, "sessionVersion") || "";
+    if (currentUser.enabled === false || currentSessionVersion !== sessionVersion) {
+      return { accessRevoked: true, roles: [] };
+    }
+
+    const currentRoles = await getUserRealmRoles(userId, { effective: true });
+    return {
+      accessRevoked: false,
+      roles: currentRoles
+        .map((role: { name?: string }) => role.name)
+        .filter(Boolean) as string[],
+    };
+  })().finally(() => pendingSessionValidations.delete(key));
+
+  pendingSessionValidations.set(key, validation);
+  return validation;
+}
 
 function decodeJwt<T>(token?: string): T | null {
   if (!token) return null;
@@ -278,26 +313,16 @@ export const authOptions: AuthOptions = {
           mutableToken.roles = ssoUser.roles;
         }
       } else if (mutableToken.userId) {
-        const userResponse = await keycloakAdminFetch(
-          `/users/${encodeURIComponent(mutableToken.userId)}`,
+        const validation = await validateApplicationSession(
+          mutableToken.userId,
+          mutableToken.sessionVersion || "",
         );
-        if (!userResponse.ok) throw new Error("Unable to validate application session");
-
-        const currentUser = await userResponse.json();
-        const currentSessionVersion =
-          readAttributeValue(currentUser.attributes, "sessionVersion") || "";
-        if (
-          currentUser.enabled === false ||
-          currentSessionVersion !== (mutableToken.sessionVersion || "")
-        ) {
+        if (validation.accessRevoked) {
           mutableToken.userId = undefined;
           mutableToken.roles = [];
           mutableToken.accessRevoked = true;
         } else {
-          const currentRoles = await getUserRealmRoles(mutableToken.userId, {
-            effective: true,
-          });
-          mutableToken.roles = currentRoles.map((role: { name?: string }) => role.name).filter(Boolean) as string[];
+          mutableToken.roles = validation.roles;
           mutableToken.accessRevoked = false;
         }
       }

@@ -1,5 +1,6 @@
 import { ApiNextResponse as NextResponse } from "@/app/lib/api-response";
 import { requireRealmAdmin } from "../../../../lib/api-auth";
+import { commonEntryLog } from "../../../../lib/app-utilities";
 import { keycloakAdminFetch } from "../../../../lib/keycloak";
 import { getKeycloakError } from "../../../../lib/keycloak-users";
 
@@ -7,12 +8,14 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
-export async function PATCH(_request: Request, context: RouteContext) {
-  const unauthorized = await requireRealmAdmin();
+export async function PATCH(request: Request, context: RouteContext) {
+  const unauthorized = await requireRealmAdmin(request);
   if (unauthorized) return unauthorized;
 
   try {
     const { id } = await context.params;
+
+    await commonEntryLog(request, { id });
 
     if (!id) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });

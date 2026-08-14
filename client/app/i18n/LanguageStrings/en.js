@@ -61,9 +61,13 @@ const en = {
     logout: "Logout",
   },
   auth: {
+    brandEyebrow: "Identity & Access Management",
+    brandTitle: "IAM Platform",
+    brandTagline: "Authorise. Secure. Observe.",
     login: "Login",
     register: "Register",
     continueWithGoogle: "Continue with Google",
+    orContinueWithGoogle: "or continue with Google",
     orLoginWithPassword: "or use password",
     username: "Username",
     password: "Password",

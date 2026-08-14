@@ -65,6 +65,9 @@ const te = {
   },
   auth: {
     ...en.auth,
+    brandEyebrow: "గుర్తింపు మరియు ప్రాప్యత నిర్వహణ",
+    brandTitle: "IAM ప్లాట్‌ఫారమ్",
+    brandTagline: "అధీకరించండి. సురక్షితం చేయండి. పర్యవేక్షించండి.",
     login: "లాగిన్",
     register: "రిజిస్టర్",
     username: "యూజర్ పేరు",

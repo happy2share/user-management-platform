@@ -14,7 +14,7 @@ type RouteContext = {
 };
 
 export async function GET(request: Request, context: RouteContext) {
-  const unauthorized = await requireRealmAdmin();
+  const unauthorized = await requireRealmAdmin(request);
   if (unauthorized) return unauthorized;
 
   try {
@@ -45,7 +45,7 @@ export async function GET(request: Request, context: RouteContext) {
 }
 
 export async function PUT(request: Request, context: RouteContext) {
-  const unauthorized = await requireRealmAdmin();
+  const unauthorized = await requireRealmAdmin(request);
   if (unauthorized) return unauthorized;
 
   try {
@@ -136,7 +136,7 @@ export async function PUT(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(request: Request, context: RouteContext) {
-  const unauthorized = await requireRealmAdmin();
+  const unauthorized = await requireRealmAdmin(request);
   if (unauthorized) return unauthorized;
 
   try {
