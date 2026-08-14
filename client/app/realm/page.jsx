@@ -184,13 +184,6 @@ export default function RealmPage() {
               </select>
             </RealmField>
 
-            <RealmField label="ACR to LoA Mapping" info>
-              <div className="realm-empty-mapping">
-                <p>No ACR to LoA Mapping has been defined yet.</p>
-                <button type="button">Add ACR to LoA Mapping</button>
-              </div>
-            </RealmField>
-
             <RealmField label="User-managed access" info>
               <StatusToggle label="Off" value={false} onChange={() => {}} />
             </RealmField>
@@ -233,18 +226,6 @@ export default function RealmPage() {
 
             <RealmField label={t("realm.bruteForceProtection")}>
               <StatusToggle label={realm.bruteForceProtected ? t("common.enabled") : t("common.disabled")} value={realm.bruteForceProtected} onChange={(value) => updateRealm("bruteForceProtected", value)} />
-            </RealmField>
-
-            <RealmField label="Unmanaged Attributes" info>
-              <select value="disabled" onChange={() => {}}>
-                <option value="disabled">Disabled</option>
-              </select>
-            </RealmField>
-
-            <RealmField label="Signature algorithm SAML IdP metadata" info>
-              <select value="" onChange={() => {}}>
-                <option value="">Choose...</option>
-              </select>
             </RealmField>
 
             <RealmField label="Endpoints" info>

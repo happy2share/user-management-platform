@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
-import { Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import LanguageSelector from "../../i18n/LanguageSelector";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { normalizeToEnglish } from "../../i18n/english-normalizer";
@@ -541,18 +541,13 @@ export default function LandingAuth() {
 
   return (
     <main className="auth-shell auth-home">
-      <LanguageSelector variant="auth" />
-
       <div className="auth-layout">
         <section className="auth-brand-panel" aria-labelledby="auth-brand-title">
           <div className="auth-brand-content">
-            <span className="auth-brand-mark" aria-hidden="true">
-              <ShieldCheck size={52} strokeWidth={1.6} />
-            </span>
-            <p className="auth-brand-eyebrow">{t("auth.brandEyebrow")}</p>
             <h1 id="auth-brand-title">{t("auth.brandTitle")}</h1>
             <p className="auth-brand-tagline">{t("auth.brandTagline")}</p>
           </div>
+          <LanguageSelector variant="auth" />
         </section>
 
         <section className="auth-card auth-access-panel">

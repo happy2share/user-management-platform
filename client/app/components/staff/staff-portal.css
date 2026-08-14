@@ -23,7 +23,7 @@
 }
 
 .staff-admin-link a {
-  color: #2563eb;
+  color: var(--primary);
   font-weight: 700;
   text-decoration: none;
 }

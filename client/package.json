@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "dev:local": "next dev",
+    "dev": "node server.mjs",
+    "dev:local": "node server.mjs",
     "build": "next build",
-    "start": "next start",
+    "start": "node server.mjs --production",
     "lint": "eslint",
     "test:security": "node scripts/security-smoke.mjs",
     "test:keycloak-cache": "node scripts/keycloak-token-cache-smoke.mjs",

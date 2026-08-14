@@ -26,6 +26,7 @@ const landingAuth = await source("../app/components/auth/LandingAuth.jsx");
 const mfaSetupRoute = await source("../app/api/public/mfa/setup/route.ts");
 const auth = await source("../app/lib/auth.ts");
 const redisUtility = await source("../app/lib/redis_utility.ts");
+const directServer = await source("../server.mjs");
 const emailVerificationSendRoute = await source(
   "../app/api/public/email-verification/send/route.ts",
 );
@@ -43,6 +44,9 @@ assert.match(auth, /effective: true/);
 assert.match(auth, /id: user\.id/);
 assert.match(redisUtility, /results\.length < expectedResponses/);
 assert.match(redisUtility, /!userId && ip === "unknown"/);
+assert.match(redisUtility, /req\.headers\.get\("x-iam-client-ip"\)/);
+assert.match(directServer, /delete request\.headers\["x-iam-client-ip"\]/);
+assert.match(directServer, /request\.socket\.remoteAddress/);
 assert.ok(
   emailVerificationSendRoute.includes('"email-send-lookup"') &&
     emailVerificationSendRoute.indexOf('"email-send-lookup"') <

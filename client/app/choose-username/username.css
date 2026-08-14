@@ -3,18 +3,16 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.86)),
-    #0f172a;
+  background: var(--bg);
 }
 
 .username-card {
   width: min(100%, 460px);
   padding: 28px;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
 }
 
 .username-header {
@@ -28,21 +26,21 @@
   flex: 0 0 auto;
   width: 42px;
   height: 42px;
-  border-radius: 8px;
-  background: #2563eb;
+  border-radius: var(--radius);
+  background: var(--primary);
 }
 
 .username-header h1 {
   margin: 0;
   font-size: 24px;
   line-height: 1.2;
-  color: #0f172a;
+  color: var(--text);
 }
 
 .username-header p,
 .username-hint {
   margin: 6px 0 0;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 14px;
   line-height: 1.5;
 }
@@ -50,10 +48,10 @@
 .username-alert {
   margin-bottom: 16px;
   padding: 11px 12px;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  background: #fef2f2;
-  color: #991b1b;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius);
+  background: var(--danger-bg);
+  color: var(--danger-text);
   font-size: 14px;
 }
 
@@ -71,33 +69,33 @@
 .username-form label {
   display: grid;
   gap: 7px;
-  color: #334155;
+  color: var(--text);
   font-size: 14px;
   font-weight: 700;
 }
 
 .username-form input {
   width: 100%;
-  height: 44px;
+  height: var(--control-h);
   padding: 0 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
   outline: 0;
-  color: #0f172a;
+  color: var(--text);
 }
 
 .username-form input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
 }
 
 .username-form button {
-  height: 44px;
+  height: var(--control-h);
   border: 0;
-  border-radius: 8px;
-  background: #2563eb;
+  border-radius: var(--radius);
+  background: var(--primary);
   color: #ffffff;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
 }
 

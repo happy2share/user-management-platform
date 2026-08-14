@@ -7,7 +7,7 @@
 .table-wrap table {
   width: 100%;
   border-collapse: collapse;
-  background: white;
+  background: var(--card);
 }
 
 .table-wrap table thead th {
@@ -141,9 +141,9 @@
 
   border: 1px solid var(--border);
 
-  border-radius: 8px;
+  border-radius: var(--radius);
 
-  background: white;
+  background: var(--card);
 
   display: flex;
   align-items: center;
@@ -185,7 +185,7 @@
 
   border-top: 1px solid var(--border);
 
-  background: white;
+  background: var(--card);
 }
 
 .pagination {
@@ -199,9 +199,9 @@
 
   border: 1px solid var(--border);
 
-  background: white;
+  background: var(--card);
 
-  border-radius: 8px;
+  border-radius: var(--radius);
 
   cursor: pointer;
 }

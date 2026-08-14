@@ -126,6 +126,9 @@ function sendRedisCommand(
 }
 
 function clientIp(req: Request) {
+  const directClientIp = req.headers.get("x-iam-client-ip");
+  if (directClientIp) return directClientIp;
+
   if (!TRUST_PROXY) return "unknown";
 
   const forwardedFor = req.headers.get("x-forwarded-for");
